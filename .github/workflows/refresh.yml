@@ -1,5 +1,10 @@
 name: Weekly TDCC holding updates
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/refresh.py'
+      - '.github/workflows/refresh.yml'
   schedule:
     # UTC; Taiwan is UTC+8. Weekdays 18:30; Saturdays 11:30 and 18:30.
     - cron: '30 10 * * 1-5'
