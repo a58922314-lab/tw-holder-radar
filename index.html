@@ -74,6 +74,15 @@ async function loadPublished(userInitiated=false){
     if(!Array.isArray(payload.snapshots)||!payload.snapshots.length)throw Error('官方資料尚未建立，請先啟用 GitHub Actions。');
     const fresh=payload.snapshots.filter(s=>s&&s.type==='auto'&&/^\d{4}-\d{2}-\d{2}$/.test(s.date)&&Array.isArray(s.records)&&s.records.length>1000);
     if(!fresh.length)throw Error('官方快照涵蓋不足，暫不取代圖片範例。');
+    // Keep the built-in 2026-10-16 sample usable until at least two distinct
+    // official weekly holding snapshots exist. The first run has null deltas,
+    // and replacing the sample at the same date would erase its TOP50 lists.
+    const newestOfficial=fresh[fresh.length-1];
+    const rankedCount=newestOfficial.records.filter(r=>typeof r.delta==='number'&&Number.isFinite(r.delta)).length;
+    if(rankedCount===0){
+      if(status)status.innerHTML='<strong>官方集保資料已成功同步：</strong>'+esc(newestOfficial.date)+' · '+newestOfficial.records.length+' 檔。這是第一週官方快照，缺少前週持股資料，目前先保留 2026/10/16 圖片範例榜單供瀏覽。第二個週別建立後將自動切換官方榜單。';
+      return;
+    }
     const previousLatest=db.snapshots.reduce((acc,s)=>s.date>acc?s.date:acc,'');
     db.snapshots=db.snapshots.filter(s=>s.type!=='auto'&&!(s.type==='built-in'&&fresh.some(f=>f.date===s.date)));
     const olddates=new Set(db.snapshots.map(s=>s.date));
