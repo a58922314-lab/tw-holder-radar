@@ -1,0 +1,55 @@
+name: Weekly TDCC holding updates
+on:
+  schedule:
+    # UTC; Taiwan is UTC+8. Weekdays 18:30; Saturdays 11:30 and 18:30.
+    - cron: '30 10 * * 1-5'
+    - cron: '30 3,10 * * 6'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: tdcc-refresh
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch official data and calculate rankings
+        id: refresh
+        run: python scripts/refresh.py
+      - name: Save downloaded data and weekly snapshots
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data/
+          if ! git diff --staged --quiet; then
+            git commit -m "data: update official market snapshots"
+            git push
+          fi
+      - uses: actions/configure-pages@v5
+      - name: Assemble published site
+        run: |
+          mkdir -p _site/data
+          cp index.html _site/index.html
+          if [ -f data/auto_snapshots.json ]; then
+            cp data/auto_snapshots.json _site/data/auto_snapshots.json
+          else
+            echo '{"snapshots":[]}' > _site/data/auto_snapshots.json
+          fi
+          touch _site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Publish snapshot website
+        id: deployment
+        uses: actions/deploy-pages@v4
