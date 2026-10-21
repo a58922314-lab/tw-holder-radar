@@ -8,7 +8,14 @@
 
 > 重要：目前 D1 官方集保資料只有一個週別，融資及 D1 條件尚未完成。本站不會把圖片範例當真實回測，也不會以集保持股清單假裝已平倉交易。
 
-## Windows 安裝（本機 Windows 10/11）
+## Windows 一鍵安裝（建議）
+1. 前往 https://github.com/a58922314-lab/tw-holder-radar ，按 Code → Download ZIP，將**整個 ZIP 完整解壓縮**。
+2. 請先安裝 Git for Windows（https://git-scm.com/downloads/win）與 Python 3.11+（https://www.python.org/downloads/windows/）。本工具不會自行修改系統環境或要求管理員權限。
+3. 在解壓縮的專案根目錄雙擊 **install-research.cmd**，它會檢查安裝前置條件，呼叫 scripts/setup-research.ps1，安裝兩套工具與驗收離線範例。
+4. 安裝成功後雙擊 **open-research.cmd**，選擇 1 開啟反詐投資王、2 開啟 JEV 離線 3D 模擬展示、3 開啟 D1 網站或 4 開啟 JSON 匯入工作台。
+5. 如果看到錯誤，保留黑色視窗並截圖；不要輸入真實券商或 AI API 金鑰。
+
+## Windows 安裝（本機 Windows 10/11）：PowerShell 進階方式
 安裝 Git for Windows 與 Python 3.11+，打開 PowerShell 進入本 repo 目錄，執行以下指令：
 
     powershell -ExecutionPolicy Bypass -File .\scripts\setup-research.ps1
