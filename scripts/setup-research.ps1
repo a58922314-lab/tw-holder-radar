@@ -1,4 +1,4 @@
-# 以 PowerShell 在本專案根目錄執行：powershell -ExecutionPolicy Bypass -File .\scripts\setup-research.ps1
+﻿# 以 PowerShell 在本專案根目錄執行：powershell -ExecutionPolicy Bypass -File .\scripts\setup-research.ps1
 # 僅建立本機虛擬環境與離線模擬；不啟用 API 或實盤下單。
 param([switch]$SkipJev)
 $ErrorActionPreference = "Stop"
