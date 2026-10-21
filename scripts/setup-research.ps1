@@ -1,7 +1,10 @@
-# 以 PowerShell 在本專案根目錄執行：powershell -ExecutionPolicy Bypass -File .\scripts\setup-research.ps1
+﻿# 以 PowerShell 在本專案根目錄執行：powershell -ExecutionPolicy Bypass -File .\scripts\setup-research.ps1
 # 僅建立本機虛擬環境與離線模擬；不啟用 API 或實盤下單。
 param([switch]$SkipJev)
 $ErrorActionPreference = "Stop"
+# Preserve Unicode output under Windows PowerShell 5.1 and redirected CI consoles.
+$env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $ToolHome = Join-Path $Root ".research-tools"
 $AntiSha = "8609cef73718a056fddb74201fc304f174fa1553"
