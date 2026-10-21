@@ -46,6 +46,8 @@ jobs:
         run: |
           mkdir -p _site/data
           cp index.html _site/index.html
+          cp strategy-validation.html _site/strategy-validation.html
+          cp strategy-validation.js _site/strategy-validation.js
           if [ -f data/auto_snapshots.json ]; then
             cp data/auto_snapshots.json _site/data/auto_snapshots.json
           else

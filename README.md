@@ -4,6 +4,12 @@
 
 網站：https://a58922314-lab.github.io/tw-holder-radar/
 
+## 交易績效驗證與 JEV 離線研究（第一階段整合）
+
+新增網站「交易績效驗證」入口：讀取由 Anti-Gambling Trader 本機分析後產生的 JSON，展示歷史績效裁決與風險，不上傳私人交易紀錄。Windows 可使用 scripts/setup-research.ps1 安裝兩套研究引擎，JEV 僅跑離線 DEMO。
+
+詳細安裝與使用方式請參閱 [整合指南](docs/INTEGRATION.md)。**本次不提供 D1 歷史回測、AI 自動下單或集保單週快照的虛構績效。**
+
 ## 啟用
 
 1. 至 **Settings → Pages → Build and deployment → Source** 選擇 **GitHub Actions**。

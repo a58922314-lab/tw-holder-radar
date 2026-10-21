@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>交易績效驗證｜大戶換手雷達</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;--bg:#0b0d11;--panel:#151a20;--line:#303741;--gold:#e0bd74;--text:#f5f3ed;--muted:#aeb3bd}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 0 0,#282114,transparent 40%),var(--bg);color:var(--text)}main{max-width:1100px;margin:auto;padding:28px 20px 80px}header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}a{color:var(--gold)}a.back{text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:12px}h1{font-size:clamp(24px,3.6vw,40px);margin:30px 0 12px}.lead{line-height:1.8;color:var(--muted);max-width:900px}.panel{border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:24px;margin:20px 0}.uplabel{display:block;border:2px dashed #685735;border-radius:12px;padding:30px;text-align:center;cursor:pointer;line-height:2;background:#201d17}.uplabel:focus-within{outline:2px solid var(--gold)}input[type=file]{max-width:100%;color:var(--text)}.minor{font-size:12px;color:var(--muted);line-height:1.7}.warn{color:#ffd79a}.bad{color:#ffb0b0}.good{color:#a2dfc6}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.card{padding:17px;border:1px solid var(--line);background:#1b2026;border-radius:12px}.card .label{font-size:12px;color:var(--muted)}.card .value{font-size:23px;font-weight:750;word-break:break-word;margin-top:12px;font-variant-numeric:tabular-nums}.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}.section{margin:25px 0}.section h2{font-size:18px;margin:0 0 12px}.lines{display:grid;gap:9px;line-height:1.65}.lines>div{border-bottom:1px solid #303741;padding:9px 0}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:12px;text-align:left;border-bottom:1px solid var(--line)}.scroll{overflow:auto}button{background:var(--gold);color:#181611;border:0;border-radius:8px;font-weight:750;padding:10px 15px;cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2px}#error{white-space:pre-wrap}#report[hidden],#error[hidden]{display:none}@media(max-width:700px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cols{grid-template-columns:1fr}.panel{padding:17px}}@media(max-width:430px){.grid{grid-template-columns:1fr 1fr}.card .value{font-size:18px}}
+</style>
+</head>
+<body>
+<main>
+<header><strong style="color:var(--gold)">TW HOLDER RADAR · 策略驗證</strong><a class="back" href="./index.html">← 返回大戶換手雷達</a></header>
+<h1>交易績效驗證工作台</h1>
+<p class="lead">匯入 <a href="https://github.com/mars-tw/anti-gambling-trader-tw" rel="noopener noreferrer">Anti-Gambling Trader</a> 產生的 JSON 分析報告，閱讀期望值、勝率、風險警訊及歷史樣本外結果。這個網頁<strong>不會自行計算統計裁決</strong>，也不把 D1 候選名單當成實際交易績效。</p>
+<section class="panel"><label class="uplabel" for="reportFile"><strong>選擇本機績效 JSON 報告</strong><span class="minor" style="display:block">只在本機瀏覽器解析，不上傳到網站或 GitHub；單檔上限 4 MB。</span><input type="file" id="reportFile" accept=".json,application/json" aria-label="選擇 Anti-Gambling Trader JSON 報告"></label><p class="minor">生成方法：在本機安裝反詐投資王後，執行 <code>anti-gambling-trader analyze trades.csv --json strategy-report.json</code>，或使用本專案附的 <code>scripts/validate-trades.ps1</code>。來源交易紀錄至少應包含股票代號、可確認的淨損益、幣別及真實平倉時間。</p><div id="error" role="alert" class="bad" hidden></div></section>
+<section id="report" hidden aria-live="polite">
+<div class="panel"><div class="minor" id="filename"></div><h2 id="headline"></h2><p id="stage"></p><div class="grid" id="kpis"></div><p class="minor">全部數值均為匯入檔原始統計結果。樣本內顯著性不保證未來獲利。</p></div>
+<div class="cols">
+  <section class="panel"><h2>統計判定與建議</h2><div class="lines" id="reasons"></div></section>
+  <section class="panel"><h2>樣本外時間檢驗</h2><div class="lines" id="holdout"></div></section>
+</div>
+<section class="panel"><h2>各策略描述統計</h2><p class="minor">各策略數字只反映所匯入樣本，不能當成個別策略的顯著優勢認證。</p><div class="scroll"><table><thead><tr><th>策略</th><th>筆數</th><th>勝率</th><th>期望值</th><th>淨損益</th></tr></thead><tbody id="tags"></tbody></table></div></section>
+<section class="panel"><h2>資料完整性與判讀限制</h2><div class="lines" id="integrity"></div></section>
+</section>
+<footer class="minor">僅作研究與教育用途，並非買賣建議。本站不保存私人交易檔案；關閉頁面即不再顯示報告。JEV 的加密貨幣模擬研究不與台股訊號互通。</footer>
+</main>
+<script src="./strategy-validation.js" defer></script>
+</body>
+</html>

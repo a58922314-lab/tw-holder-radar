@@ -1,0 +1,11 @@
+# 本機 AI / Python 安裝與可能含機密的交易報表不可提交
+.research-tools/
+.research-reports/
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+config.json
+paper_state.json
+runtime_state.json
