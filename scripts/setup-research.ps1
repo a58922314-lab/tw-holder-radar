@@ -32,11 +32,11 @@ function Checkout-Reviewed([string]$Name, [string]$Url, [string]$Sha) {
         return $dest
     }
     Write-Host "下載 $Name..."
-    & git clone --depth 1 --branch main $Url $dest
+    & git clone --depth 1 --branch main $Url $dest | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "下載失敗: $Name" }
-    & git -C $dest fetch --depth 1 origin $Sha
+    & git -C $dest fetch --depth 1 origin $Sha | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "無法取得審查過的版本: $Name" }
-    & git -C $dest checkout --detach $Sha
+    & git -C $dest checkout --detach $Sha | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "無法切換版本: $Name" }
     return $dest
 }
