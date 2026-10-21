@@ -46,6 +46,7 @@ function Install-Reviewed([string]$Name, [string]$Sha) {
     $staging = Join-Path $ToolHome ("download-" + [guid]::NewGuid().ToString("N"))
     $zip = Join-Path $staging "source.zip"
     $unpack = Join-Path $staging "unpacked"
+    $movedByInstaller = $false
     New-Item -ItemType Directory -Path $staging | Out-Null
     try {
         Write-Host "下載 $Name 的固定版本 $Sha..."
@@ -55,13 +56,12 @@ function Install-Reviewed([string]$Name, [string]$Sha) {
         $found = @(Get-ChildItem -LiteralPath $unpack -Directory)
         if ($found.Count -ne 1) { throw "壓縮檔內容異常：$Name" }
         Move-Item -LiteralPath $found[0].FullName -Destination $dest
+        $movedByInstaller = $true
         Set-Content -LiteralPath (Join-Path $dest ".d1-source-commit") -Encoding Ascii -Value $Sha
     } catch {
         # Never reuse a partial extraction on the next installation attempt.
-        if (Test-Path -LiteralPath $dest) {
-            if (-not (Test-Path -LiteralPath $marker)) {
-                Remove-Item -LiteralPath $dest -Recurse -Force -ErrorAction SilentlyContinue
-            }
+        if ($movedByInstaller -and (Test-Path -LiteralPath $dest) -and -not (Test-Path -LiteralPath $marker)) {
+            Remove-Item -LiteralPath $dest -Recurse -Force -ErrorAction SilentlyContinue
         }
         throw
     } finally {
