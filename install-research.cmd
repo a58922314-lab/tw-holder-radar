@@ -10,12 +10,7 @@ if not exist "scripts\setup-research.ps1" (
   echo [錯誤] 缺少安裝腳本。請先解壓縮整個專案 ZIP，不能單獨下載本 CMD。
   goto :failed
 )
-where git >nul 2>nul
-if errorlevel 1 (
-  echo [錯誤] 找不到 Git for Windows。請先安裝 Git：
-  echo https://git-scm.com/downloads/win
-  goto :failed
-)
+echo [資訊] 此版本無須安裝 Git，會直接下載程式壓縮檔。
 where py >nul 2>nul
 if not errorlevel 1 goto :start
 where python >nul 2>nul
