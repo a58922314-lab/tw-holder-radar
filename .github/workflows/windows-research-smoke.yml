@@ -1,0 +1,28 @@
+name: Windows research setup smoke test
+on:
+  pull_request:
+    paths:
+      - 'install-research.cmd'
+      - 'open-research.cmd'
+      - 'scripts/setup-research.ps1'
+      - '.github/workflows/windows-research-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install reviewed engines and test offline demos
+        shell: powershell
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-research.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Windows setup failed with code $LASTEXITCODE" }
+          if (!(Test-Path ".research-tools\anti-gambling-trader-tw\.venv\Scripts\python.exe")) { throw "Anti-Gambling not installed" }
+          if (!(Test-Path ".research-tools\jev-trading-command-center\.venv\Scripts\python.exe")) { throw "JEV not installed" }
+          Write-Host "Both research environments passed offline smoke checks."
