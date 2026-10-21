@@ -8,7 +8,7 @@
 
 新增網站「交易績效驗證」入口：讀取由 Anti-Gambling Trader 本機分析後產生的 JSON，展示歷史績效裁決與風險，不上傳私人交易紀錄。Windows 可使用 scripts/setup-research.ps1 安裝兩套研究引擎，JEV 僅跑離線 DEMO。
 
-Windows 可下載完整專案 ZIP、解壓縮後**雙擊 `install-research.cmd`**，安裝完成後雙擊 `open-research.cmd` 選擇工作台（電腦需先有 Git for Windows 與 Python 3.11+）。詳細安裝與使用方式請參閱 [整合指南](docs/INTEGRATION.md)。**本次不提供 D1 歷史回測、AI 自動下單或集保單週快照的虛構績效。**
+**[直接下載 Windows 安裝資料夾 ZIP](https://github.com/a58922314-lab/tw-holder-radar/archive/refs/heads/main.zip)**，完整解壓縮後**雙擊 `install-research.cmd`**；再雙擊 `open-research.cmd` 選擇工作台。現在**不需要 Git**，只需要先安裝 Python 3.11 以上（以及下載檔案所需的網路）。詳細安裝與使用方式請參閱 [整合指南](docs/INTEGRATION.md)。**本次不提供 D1 歷史回測、AI 自動下單或集保單週快照的虛構績效。**
 
 ## 啟用
 
