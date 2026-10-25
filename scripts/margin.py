@@ -21,6 +21,7 @@ def _tables(payload):
     if not isinstance(payload,dict) or payload.get('stat') not in (None,'OK','ok'):return
     a=list(payload.get('tables') or [])
     if isinstance(payload.get('data'),list):a.insert(0,payload)
+    if isinstance(payload.get('aaData'),list):a.insert(0,{'fields':payload.get('fields',[]),'aaData':payload.get('aaData')})
     for tbl in a:
         fields=tbl.get('fields') or []
         rows=tbl.get('data') or tbl.get('aaData') or []
@@ -51,6 +52,15 @@ def parse_margin(payload,market):
 
 def fill_week_margin(weeks,roster,download,read,write):
     margins=read('margin_history.json',{})
+    meta=read('margin_cache_metadata.json',{})
+    # Previously an undated latest-only TPEx endpoint was used as historical
+    # fallback. Purge those OTC cache entries exactly once; never reuse them.
+    if meta.get('source_policy_version')!=2:
+        for cache in margins.values():
+            for c in list(cache):
+                if c in roster and roster[c].get('market')=='上櫃':del cache[c]
+        write('margin_cache_metadata.json',{'source_policy_version':2,'otc_history_requires_dated_endpoint':True})
+        print('Cleared unverified OTC margin backfill from prior snapshots')
     warnings=[]
     dates=sorted(weeks)[-12:]
     for d in dates:
@@ -59,7 +69,7 @@ def fill_week_margin(weeks,roster,download,read,write):
         urls={
             '上市':['https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date='+d.replace('-','')+'&selectType=ALL&response=json'],
             '上櫃':['https://www.tpex.org.tw/www/zh-tw/margin/balance?date='+quote(roc,safe='')+'&response=json',
-                    'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_margin_balance']
+                    'https://www.tpex.org.tw/web/stock/margin_trading/margin_balance/margin_bal.php?l=zh-tw&d='+quote(roc,safe='')+'&o=json']
         }
         for market,targets in urls.items():
             stockcount=sum(c in roster and roster[c].get('market')==market for c in current)
