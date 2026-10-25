@@ -28,9 +28,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Run data ingestion regression tests
+        run: python -m unittest discover -s tests -v
       - name: Fetch official data and calculate rankings
         id: refresh
         run: python scripts/refresh.py
+      - name: Validate resulting whole-market snapshots
+        run: python scripts/verify_snapshot.py
       - name: Save downloaded data and weekly snapshots
         if: always()
         run: |
