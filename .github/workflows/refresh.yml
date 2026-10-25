@@ -52,11 +52,15 @@ jobs:
         run: |
           python -c 'import pathlib,re; x=pathlib.Path("index.html").read_text(); m=re.search("<script>(.*?)</script>",x,re.S); assert m, "Missing inline dashboard script"; pathlib.Path("/tmp/radar.js").write_text(m.group(1))'
           node --check /tmp/radar.js
+          node --check rules/d1-screening.js
+          node --test tests/d1-screening.test.cjs
       - uses: actions/configure-pages@v5
       - name: Assemble published site
         run: |
           mkdir -p _site/data
           cp index.html _site/index.html
+          mkdir -p _site/rules
+          cp rules/d1-screening.js _site/rules/d1-screening.js
           cp strategy-validation.html _site/strategy-validation.html
           cp strategy-validation.js _site/strategy-validation.js
           if [ -f data/auto_snapshots.json ]; then
