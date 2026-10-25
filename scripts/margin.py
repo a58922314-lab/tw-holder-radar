@@ -59,6 +59,7 @@ def fill_week_margin(weeks,roster,download,read,write):
         for cache in margins.values():
             for c in list(cache):
                 if c in roster and roster[c].get('market')=='上櫃':del cache[c]
+        write('margin_history.json',margins)
         write('margin_cache_metadata.json',{'source_policy_version':2,'otc_history_requires_dated_endpoint':True})
         print('Cleared unverified OTC margin backfill from prior snapshots')
     warnings=[]
