@@ -24,6 +24,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Validate dashboard script syntax
+        run: |
+          python -c 'import pathlib,re; x=pathlib.Path("index.html").read_text(); m=re.search("<script>(.*?)</script>",x,re.S); assert m, "Missing inline dashboard script"; pathlib.Path("/tmp/radar.js").write_text(m.group(1))'
+          node --check /tmp/radar.js
       - uses: actions/configure-pages@v5
       - name: Assemble website
         run: |
