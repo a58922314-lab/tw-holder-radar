@@ -38,6 +38,15 @@ class RadarTests(unittest.TestCase):
         self.assertIsNone(rec['returnPct'])
         self.assertIsNone(rec['margin'])
 
+    def test_margin_uses_financing_today_not_short_selling(self):
+        from scripts.margin import parse_margin
+        fields=['股票代號','股票名稱','買進','賣出','現償','前日餘額','今日餘額','限額','買進','賣出','現償','前日餘額','今日餘額','限額']
+        rows=[['2330','台積電','4','3','0','850','842','1000','8','2','0','200','999','1000']]
+        payload={'stat':'OK','tables':[{'fields':fields,'data':rows}]}
+        self.assertEqual(parse_margin(payload,'上市').get('2330'),842)
+        otc=[{'SecuritiesCompanyCode':'6488','MarginBalance':'1,200'}]
+        self.assertEqual(parse_margin(otc,'上櫃').get('6488'),1200)
+
     def test_backfill_rejects_tiny_market_responses(self):
         prices={}
         roster={str(i):{'market':'上市','name':'測試'} for i in range(1100,2500)}
