@@ -4,6 +4,7 @@ import csv,io,json,re,time,urllib.request
 from pathlib import Path
 from datetime import datetime,timezone
 from collections import defaultdict
+from scripts.margin import fill_week_margin
 
 ROOT=Path(__file__).resolve().parents[1]
 DATA=ROOT/'data'
@@ -183,7 +184,9 @@ def close_near(history,d,c):
         delta=(target-datetime.fromisoformat(dt)).days
         if 0<=delta<=5 and c in history[dt]:return history[dt][c]
     return None
-def make_records(d,now,old,older,roster,prices,prevdate):
+def make_records(d,now,old,older,roster,prices,prevdate,margin_now=None,margin_prior=None):
+    margin_now=margin_now or {}
+    margin_prior=margin_prior or {}
     result=[]
     for c,r in roster.items():
         if c not in now:continue
@@ -191,7 +194,7 @@ def make_records(d,now,old,older,roster,prices,prevdate):
         f=lambda k:round(v[k]-p[k],4) if p else None
         pclose=close_near(prices,prevdate,c);nclose=close_near(prices,d,c)
         weekly=round(100*(nclose/pclose-1),2) if pclose and nclose else None
-        result.append({'code':c,'name':r['name'],'market':r['market'],'delta':f('big'),'priorDelta':round(p['big']-q['big'],4) if p and q else None,'kilo':f('thousand'),'retail':f('retail'),'owners':round(v['owners']-p['owners']) if p and v['owners'] is not None and p['owners'] is not None else None,'returnPct':weekly,'margin':None,'tags':'','top':None,'rank':None,'source':'TDCC/TWSE/TPEx 官方快照'})
+        result.append({'code':c,'name':r['name'],'market':r['market'],'delta':f('big'),'priorDelta':round(p['big']-q['big'],4) if p and q else None,'kilo':f('thousand'),'retail':f('retail'),'owners':round(v['owners']-p['owners']) if p and v['owners'] is not None and p['owners'] is not None else None,'returnPct':weekly,'margin':None,'marginBalance':margin_now.get(c),'marginChange':round(margin_now[c]-margin_prior[c]) if c in margin_now and c in margin_prior else None,'tags':'','top':None,'rank':None,'source':'TDCC/TWSE/TPEx 官方快照'})
     for label,arr in [('gain',sorted([r for r in result if r['delta'] is not None and r['delta']>0],key=lambda x:-x['delta'])[:50]),('loss',sorted([r for r in result if r['delta'] is not None and r['delta']<0],key=lambda x:x['delta'])[:50])]:
         for i,r in enumerate(arr,1):r['top']=label;r['rank']=i
     return result
@@ -205,15 +208,16 @@ def refresh():
     for d in sorted(weeks)[:-25]:del weeks[d]
     warn_history=backfill_week_closes(prices,weeks.keys(),roster)
     write('prices.json',prices)
+    margins,warn_margin=fill_week_margin(weeks,roster,download,read,write)
     write('universe.json',roster);write('tdcc_history.json',weeks)
     timeline=sorted(weeks);reports=[]
     for i,d in enumerate(timeline[-12:]):
         idx=timeline.index(d);p=timeline[idx-1] if idx>0 else None;q=timeline[idx-2] if idx>1 else None
         if p and (datetime.fromisoformat(d)-datetime.fromisoformat(p)).days>10:p=None;q=None
         if p and q and (datetime.fromisoformat(p)-datetime.fromisoformat(q)).days>10:q=None
-        rs=make_records(d,weeks[d],weeks[p] if p else {},weeks[q] if q else {},roster,prices,p)
-        reports.append({'date':d,'compareDate':p,'label':d+' 官方定期快照','type':'auto','source':'臺灣集保結算所／證交所／櫃買中心','records':rs,'marketCoverage':len(rs),'warnings':warn_price+warn_roster+warn_history})
+        rs=make_records(d,weeks[d],weeks[p] if p else {},weeks[q] if q else {},roster,prices,p,margins.get(d,{}),margins.get(p,{}) if p else {})
+        reports.append({'date':d,'compareDate':p,'label':d+' 官方定期快照','type':'auto','source':'臺灣集保結算所／證交所／櫃買中心','records':rs,'marketCoverage':len(rs),'warnings':warn_price+warn_roster+warn_history+warn_margin})
     write('auto_snapshots.json',{'generatedAt':datetime.now(timezone.utc).isoformat(),'latestDate':date_tdcc,'snapshots':reports})
     print('Updated',date_tdcc,'records',len(reports[-1]['records']),'trading days',len(prices),'TDCC weeks',len(weeks))
-    for w in warn_price+warn_roster+warn_history:print('Warning:',w)
+    for w in warn_price+warn_roster+warn_history+warn_margin:print('Warning:',w)
 if __name__=='__main__':refresh()
