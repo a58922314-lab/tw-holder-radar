@@ -4,7 +4,10 @@ import csv,io,json,re,time,urllib.request
 from pathlib import Path
 from datetime import datetime,timezone
 from collections import defaultdict
-from scripts.margin import fill_week_margin
+try:
+    from scripts.margin import fill_week_margin
+except ModuleNotFoundError:
+    from margin import fill_week_margin
 
 ROOT=Path(__file__).resolve().parents[1]
 DATA=ROOT/'data'
