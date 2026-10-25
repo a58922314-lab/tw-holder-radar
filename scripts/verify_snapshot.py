@@ -21,6 +21,11 @@ for s in snapshots:
     result=sum(isinstance(r.get('returnPct'),(float,int)) for r in rows)
     if result and result<200:raise AssertionError("Only few returns, quote coverage likely corrupted")
     prior=sum(isinstance(r.get('priorDelta'),(float,int)) for r in rows)
+    margin_count=sum(isinstance(r.get('marginChange'),(float,int)) for r in rows)
+    d1=sum(isinstance(r.get('marginChange'),(float,int)) and r['marginChange']<0 and
+           isinstance(r.get('returnPct'),(float,int)) and r['returnPct']<=0 and
+           isinstance(r.get('delta'),(float,int)) and 1<=r['delta']<=10
+           for r in rows)
     categories=Counter(
         '續買' if r['priorDelta']>=1 and r['delta']>=1 else
         '回頭車' if r['priorDelta']<=-1 and r['delta']>=1 else
@@ -30,5 +35,5 @@ for s in snapshots:
         for r in rows
         if isinstance(r.get('priorDelta'),(int,float)) and isinstance(r.get('delta'),(int,float))
     )
-    print(f"SNAPSHOT {s['date']} versus {s.get('compareDate')}: stocks={len(rows)} big_holder_delta={comparable} prior_week_delta={prior} weekly_return={result} gainTop={len(gains)} lossTop={len(losses)} categories={dict(categories)}")
+    print(f"SNAPSHOT {s['date']} versus {s.get('compareDate')}: stocks={len(rows)} big_holder_delta={comparable} prior_week_delta={prior} weekly_return={result} gainTop={len(gains)} lossTop={len(losses)} margin_weekly={margin_count} D1_strict={d1} categories={dict(categories)}")
 print("OFFICIAL DATA VALIDATION PASSED")
