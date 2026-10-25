@@ -107,6 +107,75 @@ def get_close(history):
         except Exception as e:warnings.append(market+' closing price: '+str(e))
     for d in sorted(history)[:-250]:del history[d]
     return warnings
+
+def _historical_rows(payload):
+    """Yield (field names, row values) from an official historical response."""
+    if isinstance(payload,dict) and payload.get('stat') not in (None,'OK','ok'):
+        raise ValueError('Official history replied: '+str(payload.get('stat')))
+    groups=(payload.get('tables') or []) if isinstance(payload,dict) else []
+    if isinstance(payload,dict) and isinstance(payload.get('data'),list):
+        groups=[{'fields':payload.get('fields',[]),'data':payload.get('data')}]+groups
+    for table in groups:
+        fields=[str(x).strip().replace(' ','') for x in table.get('fields',[])]
+        if not fields:continue
+        data=table.get('data') or table.get('aaData') or []
+        for entry in data:
+            if isinstance(entry,list) and len(entry)==len(fields):yield fields,entry
+            elif isinstance(entry,dict):yield list(entry),list(entry.values())
+
+def _clean_number(val):
+    import html as _html
+    v=re.sub('<[^>]+>','',str(val or ''))
+    v=_html.unescape(v).replace(',','').strip()
+    try:
+        p=float(v)
+        return p if 0<p<1000000 else None
+    except (ValueError,TypeError):return None
+
+def _parse_history(payload,market):
+    """Avoid guessing columns: require code + closing-price field headings."""
+    result={}
+    for fields,values in _historical_rows(payload):
+        names=[re.sub(r'\s+','',k) for k in fields]
+        code_index=next((i for i,h in enumerate(names) if h in ('證券代號','股票代號','代號','Code')),None)
+        close_index=next((i for i,h in enumerate(names) if h in ('收盤價','收盤','Close','ClosingPrice')),None)
+        if code_index is None or close_index is None:continue
+        c=re.sub('<[^>]+>','',str(values[code_index] or '')).strip()
+        v=_clean_number(values[close_index])
+        if code(c) and v is not None:result[c]=v
+    return result
+
+def backfill_week_closes(prices,weekly_dates,roster):
+    """Fetch a small number of official historical sessions for missing weekly anchors.
+
+    Historical prices are optional. They must never be approximated or invented.
+    Max six market/date requests per run; data are saved once per verified session.
+    """
+    from urllib.parse import quote
+    warnings=[]
+    wanted=sorted(set(weekly_dates))[-12:]
+    for d in wanted:
+        current=prices.setdefault(d,{})
+        dt=datetime.fromisoformat(d)
+        urls={
+            '上市':'https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date='+d.replace('-','')+'&type=ALLBUT0999&response=json',
+            '上櫃':'https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes?response=json&date='+quote(d.replace('-','/'),safe='')
+        }
+        for market,url in urls.items():
+            have=sum(1 for c in current if c in roster and roster[c]['market']==market)
+            if have>=('上市'==market and 850 or 600):continue
+            try:
+                payload=json.loads(download(url).decode('utf-8-sig'))
+                found=_parse_history(payload,market)
+                if len(found)<250:raise ValueError('Insufficient valid quote rows: '+str(len(found)))
+                valid={c:p for c,p in found.items() if c in roster and roster[c]['market']==market}
+                if len(valid)<200:raise ValueError('Historical market coverage too low '+str(len(valid)))
+                current.update(valid)
+                print('History recovered',d,market,'stocks',len(valid))
+            except Exception as e:
+                warnings.append('Historical '+market+' '+d+': '+str(e)[:180])
+    return warnings
+
 def close_near(history,d,c):
     if not d:return None
     target=datetime.fromisoformat(d)
@@ -134,6 +203,8 @@ def refresh():
     weeks=read('tdcc_history.json',{})
     weeks[date_tdcc]=now
     for d in sorted(weeks)[:-25]:del weeks[d]
+    warn_history=backfill_week_closes(prices,weeks.keys(),roster)
+    write('prices.json',prices)
     write('universe.json',roster);write('tdcc_history.json',weeks)
     timeline=sorted(weeks);reports=[]
     for i,d in enumerate(timeline[-12:]):
@@ -141,8 +212,8 @@ def refresh():
         if p and (datetime.fromisoformat(d)-datetime.fromisoformat(p)).days>10:p=None;q=None
         if p and q and (datetime.fromisoformat(p)-datetime.fromisoformat(q)).days>10:q=None
         rs=make_records(d,weeks[d],weeks[p] if p else {},weeks[q] if q else {},roster,prices,p)
-        reports.append({'date':d,'compareDate':p,'label':d+' 官方定期快照','type':'auto','source':'臺灣集保結算所／證交所／櫃買中心','records':rs,'marketCoverage':len(rs),'warnings':warn_price+warn_roster})
+        reports.append({'date':d,'compareDate':p,'label':d+' 官方定期快照','type':'auto','source':'臺灣集保結算所／證交所／櫃買中心','records':rs,'marketCoverage':len(rs),'warnings':warn_price+warn_roster+warn_history})
     write('auto_snapshots.json',{'generatedAt':datetime.now(timezone.utc).isoformat(),'latestDate':date_tdcc,'snapshots':reports})
     print('Updated',date_tdcc,'records',len(reports[-1]['records']),'trading days',len(prices),'TDCC weeks',len(weeks))
-    for w in warn_price+warn_roster:print('Warning:',w)
+    for w in warn_price+warn_roster+warn_history:print('Warning:',w)
 if __name__=='__main__':refresh()
