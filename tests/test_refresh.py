@@ -46,6 +46,9 @@ class RadarTests(unittest.TestCase):
         self.assertEqual(parse_margin(payload,'上市').get('2330'),842)
         otc=[{'SecuritiesCompanyCode':'6488','MarginBalance':'1,200'}]
         self.assertEqual(parse_margin(otc,'上櫃').get('6488'),1200)
+        fields_otc=['代號','名稱','前資餘額']+[f'資料{i}' for i in range(3,20)]
+        vals=['6488','環球晶','500','0','0','0','475']+['0']*13
+        self.assertEqual(parse_margin({'stat':'OK','tables':[{'fields':fields_otc,'data':[vals]}]},'上櫃').get('6488'),475)
 
     def test_backfill_rejects_tiny_market_responses(self):
         prices={}
