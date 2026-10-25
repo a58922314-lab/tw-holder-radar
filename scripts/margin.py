@@ -42,6 +42,10 @@ def parse_margin(payload,market):
         # (short buy,sell,repay,prev,today,limit) -> finance today is index 6.
         if market=='上市' and midx is None and len(fields)>=14 and cidx==0:
             midx=6
+        # TPEx 20-column historical margin report: index 2 = prior financing,
+        # index 6 = current financing balance (資餘額), index 14 = short balance.
+        if market=='上櫃' and midx is None and cidx==0 and len(fields)>=20 and '資' in ''.join(fields[2:7]):
+            midx=6
         if cidx is None or midx is None:continue
         for row in rows:
             if not isinstance(row,list) or max(cidx,midx)>=len(row):continue
