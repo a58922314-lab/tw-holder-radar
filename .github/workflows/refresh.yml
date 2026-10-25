@@ -43,7 +43,10 @@ jobs:
           git add -A data/
           if ! git diff --staged --quiet; then
             git commit -m "data: update official market snapshots"
-            git push
+            # The main branch may have changed while APIs were downloading.
+            # Replay our generated-data commit on the newest code before pushing.
+            git pull --rebase origin main
+            git push origin HEAD:main
           fi
       - uses: actions/configure-pages@v5
       - name: Assemble published site
