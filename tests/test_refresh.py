@@ -75,6 +75,11 @@ class RadarTests(unittest.TestCase):
         row[23]='999'
         self.assertEqual(parse_tpex({'aaData':[row]}),{})
         self.assertIsNone(weekly_institutional('2026-10-16','2026-10-22','6257','上櫃',{}, {})['foreignWeekly'])
+        prices={d:{str(i):1 for i in range(1000,1900)} for d in ('2026-10-19','2026-10-20','2026-10-21','2026-10-22')}
+        hist={'2026-10-22':{'上櫃':{'6257':{'foreign':1000,'trust':300,'dealer':-100}}}}
+        partial=weekly_institutional('2026-10-16','2026-10-22','6257','上櫃',hist,prices)
+        self.assertIsNone(partial['foreignWeekly'])
+        self.assertEqual((partial['instCoverage'],partial['instExpected']),(1,4))
 
     def test_backfill_archive_requires_original_owner_and_all_holding_levels(self):
         from scripts.a1_archive_backfill import _archived_snapshot
