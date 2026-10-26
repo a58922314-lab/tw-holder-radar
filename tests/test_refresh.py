@@ -50,6 +50,31 @@ class RadarTests(unittest.TestCase):
         vals=['6488','環球晶','500','0','0','0','475']+['0']*13
         self.assertEqual(parse_margin({'stat':'OK','tables':[{'fields':fields_otc,'data':[vals]}]},'上櫃').get('6488'),475)
 
+    def test_tdcc_denominator_total_comes_from_level17_real_share_count(self):
+        rows=[{'證券代號':'2330','資料日期':'1151022','持股分級':str(i),
+               '占集保庫存數比例%':'1','股數':'1000','人數':'10'}
+              for i in range(1,16)]
+        rows.append({'證券代號':'2330','資料日期':'1151022','持股分級':'17','股數':'25000000000','人數':'30000'})
+        d,out=refresh.tdcc_parse(rows)
+        self.assertEqual(out['2330']['totalShares'],25000000000)
+
+    def test_a1_institution_parsers_check_accounting_identity(self):
+        from scripts.a1_institutional import parse_twse,parse_tpex,weekly_institutional
+        fields=['證券代號','外陸資買賣超股數(不含外資自營商)',
+                '外資自營商買賣超股數','投信買賣超股數',
+                '自營商買賣超股數(自行買賣)','自營商買賣超股數(避險)',
+                '三大法人買賣超股數']
+        good=['2330','2000','1','3000','-500','200','4700']
+        self.assertEqual(parse_twse({'stat':'OK','tables':[{'fields':fields,'data':[good]}]})['2330']['foreign'],2000)
+        bad=good.copy();bad[-1]='999999'
+        self.assertEqual(parse_twse({'stat':'OK','tables':[{'fields':fields,'data':[bad]}]}),{})
+        row=['0']*24
+        row[0]='6257';row[4]='12000';row[13]='2000';row[16]='500';row[19]='-100';row[22]='400';row[23]='14400'
+        self.assertEqual(parse_tpex({'aaData':[row]})['6257']['trust'],2000)
+        row[23]='999'
+        self.assertEqual(parse_tpex({'aaData':[row]}),{})
+        self.assertIsNone(weekly_institutional('2026-10-16','2026-10-22','6257','上櫃',{}, {})['foreignWeekly'])
+
     def test_table_price_is_latest_dated_close_not_placeholder(self):
         roster={'2330':{'name':'台積電','market':'上市'},
                 '6257':{'name':'矽格','market':'上櫃'}}
