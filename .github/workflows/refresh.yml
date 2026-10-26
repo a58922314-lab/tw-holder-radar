@@ -41,18 +41,31 @@ jobs:
       - name: Validate resulting whole-market snapshots
         run: python scripts/verify_snapshot.py
       - name: Save downloaded data and weekly snapshots
-        if: always()
+        # Never publish partial/invalid data on fetch or validation failure.
+        if: success()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A data/
-          if ! git diff --staged --quiet; then
+          # Snapshot generation takes time; the default branch may move.
+          # Stage only validated data on top of the newest main each attempt.
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --mixed origin/main
+            git add -A data/
+            if git diff --staged --quiet; then
+              echo "No new official data."
+              break
+            fi
             git commit -m "data: update official market snapshots"
-            # The main branch may have changed while APIs were downloading.
-            # Replay our generated-data commit on the newest code before pushing.
-            git pull --rebase origin main
-            git push origin HEAD:main
-          fi
+            if git push origin HEAD:main; then
+              echo "Published validated official data."
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Unable to push official data after 3 retries" >&2
+              exit 1
+            fi
+          done
       - name: Validate dashboard script syntax
         run: |
           python -c 'import pathlib,re; x=pathlib.Path("index.html").read_text(); m=re.search("<script>(.*?)</script>",x,re.S); assert m, "Missing inline dashboard script"; pathlib.Path("/tmp/radar.js").write_text(m.group(1))'
