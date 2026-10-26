@@ -7,9 +7,11 @@ from collections import defaultdict
 try:
     from scripts.margin import fill_week_margin
     from scripts.a1_institutional import collect_institutional,weekly_institutional
+    from scripts.a1_archive_backfill import verified_archive_backfill
 except ModuleNotFoundError:
     from margin import fill_week_margin
     from a1_institutional import collect_institutional,weekly_institutional
+    from a1_archive_backfill import verified_archive_backfill
 
 ROOT=Path(__file__).resolve().parents[1]
 DATA=ROOT/'data'
@@ -65,7 +67,7 @@ def tdcc_parse(rr):
     d=ds[-1]; out={}
     for (dt,c),v in a.items():
         if dt!=d or any(i not in v for i in range(1,16)):continue
-        out[c]={'big':round(sum(v[i] for i in range(12,16)),4),'thousand':v[15],'retail':round(sum(v[i] for i in range(1,6)),4),'owners':v.get('owners'),'totalShares':v.get('totalShares')}
+        out[c]={'big':round(sum(v[i] for i in range(12,16)),4),'thousand':v[15],'retail':round(sum(v[i] for i in range(1,6)),4),'owners':v.get('owners'),'totalShares':v.get('totalShares'),'totalSharesSource':'tdcc_current_openapi' if v.get('totalShares') is not None else None}
     return d,out
 def get_tdcc():
     errors=[]
@@ -213,7 +215,7 @@ def make_records(d,now,old,older,roster,prices,prevdate,margin_now=None,margin_p
         inventory_pct=round((curr_total/prev_total-1)*100,4) if curr_total and prev_total else None
         inst=weekly_institutional(prevdate,d,c,r['market'],institutional,prices)
         weekly=round(100*(nclose/pclose-1),2) if pclose and nclose else None
-        result.append({'code':c,'name':r['name'],'market':r['market'],'delta':f('big'),'priorDelta':round(p['big']-q['big'],4) if p and q else None,'kilo':f('thousand'),'retail':f('retail'),'owners':round(v['owners']-p['owners']) if p and v['owners'] is not None and p['owners'] is not None else None,'returnPct':weekly,'latestPrice':latest_price,'latestPriceDate':latest_price_date,'inventoryChangePct':inventory_pct,'inventoryShares':curr_total,'foreignWeekly':inst['foreignWeekly'],'trustWeekly':inst['trustWeekly'],'dealerWeekly':inst['dealerWeekly'],'instCoverage':inst['instCoverage'],'instExpected':inst['instExpected'],'margin':None,'marginBalance':margin_now.get(c),'marginChange':round(margin_now[c]-margin_prior[c]) if c in margin_now and c in margin_prior else None,'tags':'','top':None,'rank':None,'source':'TDCC/TWSE/TPEx 官方快照'})
+        result.append({'code':c,'name':r['name'],'market':r['market'],'delta':f('big'),'priorDelta':round(p['big']-q['big'],4) if p and q else None,'kilo':f('thousand'),'retail':f('retail'),'owners':round(v['owners']-p['owners']) if p and v['owners'] is not None and p['owners'] is not None else None,'returnPct':weekly,'latestPrice':latest_price,'latestPriceDate':latest_price_date,'inventoryChangePct':inventory_pct,'inventoryShares':curr_total,'inventoryDataSource':('archived_tddc_csv_crosschecked' if p and p.get('totalSharesSource')=='tdcc_csv_independent_archive_verified' else 'tdcc_current_openapi') if inventory_pct is not None else None,'foreignWeekly':inst['foreignWeekly'],'trustWeekly':inst['trustWeekly'],'dealerWeekly':inst['dealerWeekly'],'instCoverage':inst['instCoverage'],'instExpected':inst['instExpected'],'margin':None,'marginBalance':margin_now.get(c),'marginChange':round(margin_now[c]-margin_prior[c]) if c in margin_now and c in margin_prior else None,'tags':'','top':None,'rank':None,'source':'TDCC/TWSE/TPEx 官方快照'})
     for label,arr in [('gain',sorted([r for r in result if r['delta'] is not None and r['delta']>0],key=lambda x:-x['delta'])[:50]),('loss',sorted([r for r in result if r['delta'] is not None and r['delta']<0],key=lambda x:x['delta'])[:50])]:
         for i,r in enumerate(arr,1):r['top']=label;r['rank']=i
     return result
@@ -225,6 +227,7 @@ def refresh():
     weeks=read('tdcc_history.json',{})
     weeks[date_tdcc]=now
     for d in sorted(weeks)[:-25]:del weeks[d]
+    archival_recovered=verified_archive_backfill(weeks,download)
     warn_history=backfill_week_closes(prices,weeks.keys(),roster)
     write('prices.json',prices)
     margins,warn_margin=fill_week_margin(weeks,roster,download,read,write)
@@ -239,5 +242,6 @@ def refresh():
         reports.append({'date':d,'compareDate':p,'label':d+' 官方定期快照','type':'auto','source':'臺灣集保結算所／證交所／櫃買中心','records':rs,'marketCoverage':len(rs),'warnings':warn_price+warn_roster+warn_history+warn_margin+warn_inst})
     write('auto_snapshots.json',{'generatedAt':datetime.now(timezone.utc).isoformat(),'latestDate':date_tdcc,'snapshots':reports})
     print('Updated',date_tdcc,'records',len(reports[-1]['records']),'trading days',len(prices),'TDCC weeks',len(weeks))
+    print('A1 backfill verified:',archival_recovered)
     for w in warn_price+warn_roster+warn_history+warn_margin+warn_inst:print('Warning:',w)
 if __name__=='__main__':refresh()
