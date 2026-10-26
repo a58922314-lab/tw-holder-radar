@@ -55,7 +55,7 @@ function renderA1(){
     '<button class="filterpill '+(state.a1===k?'selected':'')+'" data-a1="'+k+'">'+esc(k)+'（'+groups[k].length+'）</button>'
   ).join('')+'</div>';
   const intro='<div class="alert" style="margin-top:16px"><strong>來源：</strong>'+esc(report.type==='auto'?'TDCC／TWSE／TPEx 官方定期快照':'2026/10/16 圖片範例')+
-    '，週別 '+esc(report.date)+'。A1 不追蹤所有股票，只從週增 TOP50 判斷。'+
+    '，週別 '+esc(report.date)+'。A1 只在週增 TOP50 中判斷。歷史集保總股數若來自第三方存檔，已和系統原有集保持股比例及股東人數逐檔核對，但仍須人工確認。'+
     '<div class="hint" style="margin-top:8px">硬條件：400張以上大戶週增≥1pp、千張級距↑、散戶(集保1–5級)持股↓、外資＋投信合計週買超>0張、集保庫存總股數週變動絕對值≤0.5%。需要同週完整法人交易日資料。股東人數減少列為輔助佐證，不作硬門檻。</div>'+
     '<div class="hint"><strong>不能證明非公司作帳：</strong>股本庫存穩定僅能降低因增減資造成誤判的風險，仍可能有董監/關係人過戶、信託、ETF調整、回購等。即使列為「A1候選」，也必須再核對公開資訊觀測站公告與重大訊息。</div>'+
     '<div class="pill-row" style="margin-top:10px"><a href="https://mops.twse.com.tw/" target="_blank" rel="noopener noreferrer">查證公開資訊觀測站</a><a href="https://www.tdcc.com.tw/portal/zh/smWeb/qryStock" target="_blank" rel="noopener noreferrer">核對集保持股</a><a href="https://www.twse.com.tw/zh/trading/foreign/t86.html" target="_blank" rel="noopener noreferrer">核對上市法人</a><a href="https://www.tpex.org.tw/zh-tw/mainboard/trading/major-institutional/3itrade/day.html" target="_blank" rel="noopener noreferrer">核對上櫃法人</a></div></div>';
