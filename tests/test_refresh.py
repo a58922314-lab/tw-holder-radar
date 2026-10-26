@@ -66,6 +66,7 @@ class RadarTests(unittest.TestCase):
                 '三大法人買賣超股數']
         good=['2330','2000','1','3000','-500','200','4700']
         self.assertEqual(parse_twse({'stat':'OK','tables':[{'fields':fields,'data':[good]}]})['2330']['foreign'],2000)
+        self.assertEqual(parse_twse({'stat':'OK','fields':fields,'data':[good]})['2330']['trust'],3000)
         bad=good.copy();bad[-1]='999999'
         self.assertEqual(parse_twse({'stat':'OK','tables':[{'fields':fields,'data':[bad]}]}),{})
         row=['0']*24
