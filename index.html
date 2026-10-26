@@ -59,9 +59,24 @@ function renderA1(){
     '<div class="hint" style="margin-top:8px">硬條件：400張以上大戶週增≥1pp、千張級距↑、散戶(集保1–5級)持股↓、外資＋投信合計週買超>0張、集保庫存總股數週變動絕對值≤0.5%。需要同週完整法人交易日資料。股東人數減少列為輔助佐證，不作硬門檻。</div>'+
     '<div class="hint"><strong>不能證明非公司作帳：</strong>股本庫存穩定僅能降低因增減資造成誤判的風險，仍可能有董監/關係人過戶、信託、ETF調整、回購等。即使列為「A1候選」，也必須再核對公開資訊觀測站公告與重大訊息。</div>'+
     '<div class="pill-row" style="margin-top:10px"><a href="https://mops.twse.com.tw/" target="_blank" rel="noopener noreferrer">查證公開資訊觀測站</a><a href="https://www.tdcc.com.tw/portal/zh/smWeb/qryStock" target="_blank" rel="noopener noreferrer">核對集保持股</a><a href="https://www.twse.com.tw/zh/trading/foreign/t86.html" target="_blank" rel="noopener noreferrer">核對上市法人</a><a href="https://www.tpex.org.tw/zh-tw/mainboard/trading/major-institutional/3itrade/day.html" target="_blank" rel="noopener noreferrer">核對上櫃法人</a></div></div>';
-  const evidence=result.all.map(({record:r,result:x})=>x.status==='候選待公告'||x.status==='資料待補'?'<tr data-code="'+esc(r.code)+'"><td class="stockcode">'+esc(r.code)+'　'+esc(r.name)+'</td><td>'+esc(x.status)+'</td><td>'+x.checks.map(c=>'<div class="hint">'+(c.state==='pass'?'✓':c.state==='fail'?'✕':'?')+' '+esc(c.label)+'：'+esc(c.text)+'</div>').join('')+'</td><td class="muted">公告未人工核實</td></tr>':'').filter(Boolean).join('');
-  return header+summary+intro+buttons+'<div class="panel pad"><h3 class="section-title">A1 分類名單 · '+chosen.length+' 檔</h3>'+
-    table(withStatus)+'</div><div class="panel pad" style="margin-top:16px"><h3 class="section-title">A1 逐項證據（候選＋待補）</h3><div class="table-wrap"><table class="stocktable" style="min-width:760px"><thead><tr><th>股票</th><th>狀態</th><th>證據核對</th><th>公告查核</th></tr></thead><tbody>'+evidence+'</tbody></table></div></div>';
+  const coverage=api.summarize(records()).all;
+  const institutionOk=coverage.filter(x=>x.result.checks.find(c=>c.key==='institution')?.state!=='pending').length;
+  const inventoryOk=coverage.filter(x=>x.result.checks.find(c=>c.key==='capital')?.state!=='pending').length;
+  const coverageLine='<div class="alert" style="margin:14px 0"><strong>資料完整度：</strong>本週增持 TOP50 '+coverage.length+' 檔；集保總股數可核對 '+inventoryOk+' / '+coverage.length+' 檔，法人完整週期可核對 '+institutionOk+' / '+coverage.length+' 檔。 <span class="muted">「未通過」不是公司作帳證據，「候選」亦尚未完成公司公告核查。</span></div>';
+  const formatCheck=c=>'<span style="font-weight:800;color:'+(c.state==='pass'?'#dcab62':c.state==='fail'?'#4fb69e':'#aaaab1')+'" title="'+esc(c.text)+'">'+(c.state==='pass'?'✓ 通過':c.state==='fail'?'✕ 未達':'? 待補')+'</span>';
+  const evidence=chosen.map(({record:r,result:x})=>{
+    const checks=x.checks||[];
+    const find=k=>checks.find(c=>c.key===k)||{state:'pending',text:'資料待補'};
+    const missing=checks.filter(c=>c.state!=='pass');
+    const detail=missing.length?missing.map(c=>(c.state==='fail'?'未達：':'待補：')+c.label+'（'+c.text+'）').join('；'):'量化五項通過；公司公告及關係人交易仍待人工核對';
+    return '<tr data-code="'+esc(r.code)+'" style="cursor:pointer"><td><strong>'+esc(r.code)+'</strong>　'+esc(r.name)+'</td>'+
+      '<td>'+esc(x.status)+'</td>'+
+      ['big','kilo','retail','capital','institution'].map(k=>'<td>'+formatCheck(find(k))+'</td>').join('')+
+      '<td style="min-width:220px"><span class="hint">'+esc(detail)+'</span></td></tr>';
+  }).join('');
+  const explain='<p class="hint" style="margin:12px 0 0">點股票列可開啟逐項數值及資料來源。若法人欄位待補，明細會列出缺少的交易日期。股本穩定只比較集保庫存總股數，不能替代重大訊息或關係人過戶核查。</p>';
+  return header+summary+intro+buttons+coverageLine+'<div class="panel pad"><h3 class="section-title">A1 分類名單 · '+chosen.length+' 檔</h3>'+
+    table(withStatus)+'</div><div class="panel pad" style="margin-top:16px"><h3 class="section-title">A1 50 檔逐項證據矩陣（目前 '+chosen.length+' 檔）</h3><div class="table-wrap"><table class="stocktable" style="min-width:1150px"><thead><tr><th>股票</th><th>篩選狀態</th><th>大戶週增</th><th>千張大戶</th><th>散戶減少</th><th>總股數穩定</th><th>外資＋投信</th><th>尚未通過／待補原因</th></tr></thead><tbody>'+evidence+'</tbody></table></div>'+explain+'</div>';
 }
 function renderSignals(){
   const all=records(), engine=window.D1Screening, report=snapshot();
