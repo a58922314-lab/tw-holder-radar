@@ -187,6 +187,13 @@ def close_near(history,d,c):
         delta=(target-datetime.fromisoformat(dt)).days
         if 0<=delta<=5 and c in history[dt]:return history[dt][c]
     return None
+def latest_close(history,c):
+    """Most recent official close for this code, with its OWN trade date."""
+    for dt in sorted(history,reverse=True):
+        price=history[dt].get(c)
+        if price is not None and price>0:return dt,price
+    return None,None
+
 def make_records(d,now,old,older,roster,prices,prevdate,margin_now=None,margin_prior=None):
     margin_now=margin_now or {}
     margin_prior=margin_prior or {}
@@ -196,8 +203,9 @@ def make_records(d,now,old,older,roster,prices,prevdate,margin_now=None,margin_p
         v=now[c];p=old.get(c);q=older.get(c)
         f=lambda k:round(v[k]-p[k],4) if p else None
         pclose=close_near(prices,prevdate,c);nclose=close_near(prices,d,c)
+        latest_price_date,latest_price=latest_close(prices,c)
         weekly=round(100*(nclose/pclose-1),2) if pclose and nclose else None
-        result.append({'code':c,'name':r['name'],'market':r['market'],'delta':f('big'),'priorDelta':round(p['big']-q['big'],4) if p and q else None,'kilo':f('thousand'),'retail':f('retail'),'owners':round(v['owners']-p['owners']) if p and v['owners'] is not None and p['owners'] is not None else None,'returnPct':weekly,'margin':None,'marginBalance':margin_now.get(c),'marginChange':round(margin_now[c]-margin_prior[c]) if c in margin_now and c in margin_prior else None,'tags':'','top':None,'rank':None,'source':'TDCC/TWSE/TPEx 官方快照'})
+        result.append({'code':c,'name':r['name'],'market':r['market'],'delta':f('big'),'priorDelta':round(p['big']-q['big'],4) if p and q else None,'kilo':f('thousand'),'retail':f('retail'),'owners':round(v['owners']-p['owners']) if p and v['owners'] is not None and p['owners'] is not None else None,'returnPct':weekly,'latestPrice':latest_price,'latestPriceDate':latest_price_date,'margin':None,'marginBalance':margin_now.get(c),'marginChange':round(margin_now[c]-margin_prior[c]) if c in margin_now and c in margin_prior else None,'tags':'','top':None,'rank':None,'source':'TDCC/TWSE/TPEx 官方快照'})
     for label,arr in [('gain',sorted([r for r in result if r['delta'] is not None and r['delta']>0],key=lambda x:-x['delta'])[:50]),('loss',sorted([r for r in result if r['delta'] is not None and r['delta']<0],key=lambda x:x['delta'])[:50])]:
         for i,r in enumerate(arr,1):r['top']=label;r['rank']=i
     return result
