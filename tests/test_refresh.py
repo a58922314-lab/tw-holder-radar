@@ -78,9 +78,9 @@ class RadarTests(unittest.TestCase):
 
     def test_backfill_archive_requires_original_owner_and_all_holding_levels(self):
         from scripts.a1_archive_backfill import _archived_snapshot
-        raw=('資料日期,證券代號,持股分級,人數,股數,占集保庫存數比例%\\n'+
-             ''.join(f'20261016,2330,{i},10,100,1.00\\n' for i in range(1,16))+
-             '20261016,2330,17,900,1000000,100.00\\n').encode('utf8')
+        raw=('資料日期,證券代號,持股分級,人數,股數,占集保庫存數比例%\n'+
+             ''.join(f'20261016,2330,{i},10,100,1.00\n' for i in range(1,16))+
+             '20261016,2330,17,900,1000000,100.00\n').encode('utf8')
         rec=_archived_snapshot(raw,'2026-10-16')['2330']
         self.assertEqual(rec['owners'],900)
         self.assertEqual(rec['shares'],1000000)
@@ -101,7 +101,7 @@ class RadarTests(unittest.TestCase):
                 raw.append(f'20261016,{c},{i},10,100,{ratio}')
             raw.append(f'20261016,{c},17,999,1000000,100.00')
         weeks={'2026-10-16':weekly}
-        verified_archive_backfill(weeks,Mock(return_value=('\\n'.join(raw)).encode('utf8')))
+        verified_archive_backfill(weeks,Mock(return_value=('\n'.join(raw)).encode('utf8')))
         self.assertTrue(all('totalShares' not in row for row in weekly.values()))
 
     def test_table_price_is_latest_dated_close_not_placeholder(self):
