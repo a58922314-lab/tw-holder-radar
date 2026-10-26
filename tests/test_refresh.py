@@ -50,6 +50,25 @@ class RadarTests(unittest.TestCase):
         vals=['6488','環球晶','500','0','0','0','475']+['0']*13
         self.assertEqual(parse_margin({'stat':'OK','tables':[{'fields':fields_otc,'data':[vals]}]},'上櫃').get('6488'),475)
 
+    def test_table_price_is_latest_dated_close_not_placeholder(self):
+        roster={'2330':{'name':'台積電','market':'上市'},
+                '6257':{'name':'矽格','market':'上櫃'}}
+        holder={'2330':{'big':58,'thousand':18,'retail':22,'owners':800},
+                '6257':{'big':42,'thousand':14,'retail':30,'owners':600}}
+        previous={'2330':{'big':57,'thousand':17,'retail':23,'owners':850},
+                  '6257':{'big':41,'thousand':13,'retail':32,'owners':620}}
+        prices={'2026-10-16':{'2330':1020,'6257':69.5},
+                '2026-10-22':{'2330':1030,'6257':71.0},
+                '2026-10-23':{'2330':1050}}
+        rows=refresh.make_records('2026-10-22',holder,previous,{},roster,prices,'2026-10-16')
+        bycode={r['code']:r for r in rows}
+        self.assertEqual(bycode['2330']['latestPrice'],1050)
+        self.assertEqual(bycode['2330']['latestPriceDate'],'2026-10-23')
+        self.assertEqual(bycode['6257']['latestPrice'],71)
+        self.assertEqual(bycode['6257']['latestPriceDate'],'2026-10-22')
+        self.assertEqual(bycode['2330']['returnPct'],0.98)
+        self.assertIsNone(refresh.latest_close({},'2330')[1])
+
     def test_backfill_rejects_tiny_market_responses(self):
         prices={}
         roster={str(i):{'market':'上市','name':'測試'} for i in range(1100,2500)}
