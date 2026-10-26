@@ -76,6 +76,34 @@ class RadarTests(unittest.TestCase):
         self.assertEqual(parse_tpex({'aaData':[row]}),{})
         self.assertIsNone(weekly_institutional('2026-10-16','2026-10-22','6257','上櫃',{}, {})['foreignWeekly'])
 
+    def test_backfill_archive_requires_original_owner_and_all_holding_levels(self):
+        from scripts.a1_archive_backfill import _archived_snapshot
+        raw=('資料日期,證券代號,持股分級,人數,股數,占集保庫存數比例%\\n'+
+             ''.join(f'20261016,2330,{i},10,100,1.00\\n' for i in range(1,16))+
+             '20261016,2330,17,900,1000000,100.00\\n').encode('utf8')
+        rec=_archived_snapshot(raw,'2026-10-16')['2330']
+        self.assertEqual(rec['owners'],900)
+        self.assertEqual(rec['shares'],1000000)
+        self.assertEqual(rec['ranges'][15],1)
+        with self.assertRaises(ValueError):
+            _archived_snapshot(raw,'2026-10-08')
+
+    def test_archive_crosscheck_rejects_bad_owner_even_when_ratios_match(self):
+        from scripts.a1_archive_backfill import verified_archive_backfill
+        from unittest.mock import Mock
+        weekly={}
+        for i in range(1100,2300):
+            weekly[str(i)]={'big':4.0,'thousand':1.0,'retail':5.0,'owners':900}
+        raw=['資料日期,證券代號,持股分級,人數,股數,占集保庫存數比例%']
+        for c in weekly:
+            for i in range(1,16):
+                ratio='1.00' if i<6 or i==15 else ('1.00' if i in (12,13,14) else '0')
+                raw.append(f'20261016,{c},{i},10,100,{ratio}')
+            raw.append(f'20261016,{c},17,999,1000000,100.00')
+        weeks={'2026-10-16':weekly}
+        verified_archive_backfill(weeks,Mock(return_value=('\\n'.join(raw)).encode('utf8')))
+        self.assertTrue(all('totalShares' not in row for row in weekly.values()))
+
     def test_table_price_is_latest_dated_close_not_placeholder(self):
         roster={'2330':{'name':'台積電','market':'上市'},
                 '6257':{'name':'矽格','market':'上櫃'}}
