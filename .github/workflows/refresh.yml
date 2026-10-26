@@ -5,6 +5,7 @@ on:
     paths:
       - 'scripts/refresh.py'
       - 'scripts/a1_institutional.py'
+      - 'scripts/a1_archive_backfill.py'
       - 'tests/a1-screening.test.cjs'
       - 'rules/a1-screening.js'
       - 'scripts/verify_snapshot.py'
