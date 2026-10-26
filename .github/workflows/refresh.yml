@@ -21,7 +21,9 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: tdcc-refresh
+  # Both workflows deploy the same GitHub Pages environment.
+  # Serialize them to prevent HTTP 400 "in progress deployment" collisions.
+  group: holder-radar-site-and-updates
   cancel-in-progress: false
 jobs:
   update:
