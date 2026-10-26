@@ -23,7 +23,7 @@
    checks.push(capital);
    const f=r.foreignWeekly,t=r.trustWeekly,complete=finite(r.instCoverage)&&finite(r.instExpected)&&r.instCoverage===r.instExpected&&r.instExpected>0;
    let inst;
-   if(!finite(f)||!finite(t)||!complete)inst={key:'institution',label:'外資＋投信同週淨買超',state:'pending',text:'法人資料或完整交易日覆蓋不足（'+String(r.instCoverage??'待補')+'/'+String(r.instExpected??'待補')+'天）'};
+   if(!finite(f)||!finite(t)||!complete)inst={key:'institution',label:'外資＋投信同週淨買超',state:'pending',text:'法人資料或完整交易日覆蓋不足（'+String(r.instCoverage??'待補')+'/'+String(r.instExpected??'待補')+'天）'+(Array.isArray(r.instMissingDates)&&r.instMissingDates.length?'，缺少 '+r.instMissingDates.join('、'):'')};
    else inst={key:'institution',label:'外資＋投信同週淨買超',state:f+t>0?'pass':'fail',text:'外資 '+price(f,1)+'張；投信 '+price(t,1)+'張；合計 '+price(f+t,1)+'張（需 >0）'};
    checks.push(inst);
    const failed=checks.some(x=>x.state==='fail');
