@@ -122,18 +122,24 @@ def collect_institutional(weeks,prices,roster,download,read,write):
     return history,warnings
 
 def weekly_institutional(start,end,c,market,history,prices):
-    if not start:return {'foreignWeekly':None,'trustWeekly':None,'dealerWeekly':None,'instCoverage':None,'instExpected':None}
+    empty={'foreignWeekly':None,'trustWeekly':None,'dealerWeekly':None,
+           'instCoverage':None,'instExpected':None,'instMissingDates':[]}
+    if not start:return empty
     weekdays=_dates_between(start,end)
-    # A weekday can be a genuine market holiday. Use saved whole-market closes to
-    # determine sessions; if daily quote history is sparse, do not certify completeness.
     sessions=[d for d in weekdays if d in prices and len(prices[d])>=800]
+    # A missing market session cannot be treated as a 0-volume day. A holiday
+    # can be a valid missing weekday, but we still fail closed until verified.
     if not sessions or len(sessions)<max(1,len(weekdays)-1):
-        return {'foreignWeekly':None,'trustWeekly':None,'dealerWeekly':None,'instCoverage':len(sessions),'instExpected':len(weekdays)}
-    items=[history.get(d,{}).get(market,{}).get(c) for d in sessions]
-    available=[v for v in items if v is not None]
-    if len(available)!=len(sessions):
-        return {'foreignWeekly':None,'trustWeekly':None,'dealerWeekly':None,'instCoverage':len(available),'instExpected':len(sessions)}
+        return {**empty,'instCoverage':0,'instExpected':len(weekdays),
+                'instMissingDates':[d for d in weekdays if d not in sessions]}
+    items=[(d,history.get(d,{}).get(market,{}).get(c)) for d in sessions]
+    available=[v for _,v in items if v is not None]
+    missing=[d for d,v in items if v is None]
+    if missing:
+        return {**empty,'instCoverage':len(available),'instExpected':len(sessions),
+                'instMissingDates':missing}
     return {'foreignWeekly':round(sum(x['foreign'] for x in available)/1000,1),
             'trustWeekly':round(sum(x['trust'] for x in available)/1000,1),
             'dealerWeekly':round(sum(x['dealer'] for x in available)/1000,1),
-            'instCoverage':len(available),'instExpected':len(sessions)}
+            'instCoverage':len(available),'instExpected':len(sessions),
+            'instMissingDates':[]}
