@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'scripts/refresh.py'
+      - 'scripts/verify_snapshot.py'
+      - 'tests/test_refresh.py'
       - '.github/workflows/refresh.yml'
   schedule:
     # UTC; Taiwan is UTC+8. Weekdays 18:30; Saturdays 11:30 and 18:30.
