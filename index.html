@@ -189,7 +189,7 @@ async function loadPublished(userInitiated=false,background=false){
     render();
     if(status){
       const incomplete=latest.records.filter(r=>r.delta==null).length;
-      const newestTradeDate=latest.records.map(r=>r.latestPriceDate).filter(x=>typeof x==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(x)).sort().pop()||'待補';
+      const newestTradeDate=latest.records.map(r=>r.latestPriceDate).filter(x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)).sort().pop()||'待補';
       const produced=generatedAt&&!Number.isNaN(new Date(generatedAt).getTime())
         ?new Date(generatedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false}):'待確認';
       status.innerHTML='<strong>自動更新已啟用</strong> · 最近產製：'+esc(produced)+'（台灣時間） · 最新集保週別：<strong>'+esc(latest.date)+'</strong> · 最新股價日期：'+esc(newestTradeDate)+' · '+latest.records.length+' 檔 · 大戶週差待補 '+incomplete+' 檔。<br/><span class="muted">GitHub 排程：週一至週五 18:30，週六 11:30／18:30（台灣時間）；此頁每10分鐘自動讀取新發布資料。按「檢查最新資料」不會直接向官方重新抓取。</span>'+
