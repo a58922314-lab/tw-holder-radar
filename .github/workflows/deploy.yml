@@ -18,8 +18,10 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  # Both workflows deploy the same GitHub Pages environment.
+  # Serialize them to prevent HTTP 400 "in progress deployment" collisions.
+  group: holder-radar-site-and-updates
+  cancel-in-progress: false
 jobs:
   publish:
     runs-on: ubuntu-latest
