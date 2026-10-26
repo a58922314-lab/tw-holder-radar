@@ -80,6 +80,7 @@ class RadarTests(unittest.TestCase):
         partial=weekly_institutional('2026-10-16','2026-10-22','6257','上櫃',hist,prices)
         self.assertIsNone(partial['foreignWeekly'])
         self.assertEqual((partial['instCoverage'],partial['instExpected']),(1,4))
+        self.assertEqual(partial['instMissingDates'],['2026-10-19','2026-10-20','2026-10-21'])
 
     def test_backfill_archive_requires_original_owner_and_all_holding_levels(self):
         from scripts.a1_archive_backfill import _archived_snapshot
