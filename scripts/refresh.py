@@ -6,8 +6,10 @@ from datetime import datetime,timezone
 from collections import defaultdict
 try:
     from scripts.margin import fill_week_margin
+    from scripts.a1_institutional import collect_institutional,weekly_institutional
 except ModuleNotFoundError:
     from margin import fill_week_margin
+    from a1_institutional import collect_institutional,weekly_institutional
 
 ROOT=Path(__file__).resolve().parents[1]
 DATA=ROOT/'data'
@@ -55,13 +57,15 @@ def tdcc_parse(rr):
         level=int(level)
         ratio=num(get(r,'占集保庫存數比例%','占集保庫存數比例％','Percent','Percentage'))
         if level<=15 and level>=1 and ratio is not None:a[(d,c)][level]=ratio
-        if level==17:a[(d,c)]['owners']=num(get(r,'人數','NumberOfHolders','Holders'))
+        if level==17:
+            a[(d,c)]['owners']=num(get(r,'人數','NumberOfHolders','Holders'))
+            a[(d,c)]['totalShares']=num(get(r,'股數','NumberOfShares','Shares'))
     ds=sorted({d for d,c in a})
     if not ds:raise ValueError('No TDCC dates')
     d=ds[-1]; out={}
     for (dt,c),v in a.items():
         if dt!=d or any(i not in v for i in range(1,16)):continue
-        out[c]={'big':round(sum(v[i] for i in range(12,16)),4),'thousand':v[15],'retail':round(sum(v[i] for i in range(1,6)),4),'owners':v.get('owners')}
+        out[c]={'big':round(sum(v[i] for i in range(12,16)),4),'thousand':v[15],'retail':round(sum(v[i] for i in range(1,6)),4),'owners':v.get('owners'),'totalShares':v.get('totalShares')}
     return d,out
 def get_tdcc():
     errors=[]
@@ -194,9 +198,10 @@ def latest_close(history,c):
         if price is not None and price>0:return dt,price
     return None,None
 
-def make_records(d,now,old,older,roster,prices,prevdate,margin_now=None,margin_prior=None):
+def make_records(d,now,old,older,roster,prices,prevdate,margin_now=None,margin_prior=None,institutional=None):
     margin_now=margin_now or {}
     margin_prior=margin_prior or {}
+    institutional=institutional or {}
     result=[]
     for c,r in roster.items():
         if c not in now:continue
@@ -204,8 +209,11 @@ def make_records(d,now,old,older,roster,prices,prevdate,margin_now=None,margin_p
         f=lambda k:round(v[k]-p[k],4) if p else None
         pclose=close_near(prices,prevdate,c);nclose=close_near(prices,d,c)
         latest_price_date,latest_price=latest_close(prices,c)
+        curr_total=v.get('totalShares');prev_total=p.get('totalShares') if p else None
+        inventory_pct=round((curr_total/prev_total-1)*100,4) if curr_total and prev_total else None
+        inst=weekly_institutional(prevdate,d,c,r['market'],institutional,prices)
         weekly=round(100*(nclose/pclose-1),2) if pclose and nclose else None
-        result.append({'code':c,'name':r['name'],'market':r['market'],'delta':f('big'),'priorDelta':round(p['big']-q['big'],4) if p and q else None,'kilo':f('thousand'),'retail':f('retail'),'owners':round(v['owners']-p['owners']) if p and v['owners'] is not None and p['owners'] is not None else None,'returnPct':weekly,'latestPrice':latest_price,'latestPriceDate':latest_price_date,'margin':None,'marginBalance':margin_now.get(c),'marginChange':round(margin_now[c]-margin_prior[c]) if c in margin_now and c in margin_prior else None,'tags':'','top':None,'rank':None,'source':'TDCC/TWSE/TPEx 官方快照'})
+        result.append({'code':c,'name':r['name'],'market':r['market'],'delta':f('big'),'priorDelta':round(p['big']-q['big'],4) if p and q else None,'kilo':f('thousand'),'retail':f('retail'),'owners':round(v['owners']-p['owners']) if p and v['owners'] is not None and p['owners'] is not None else None,'returnPct':weekly,'latestPrice':latest_price,'latestPriceDate':latest_price_date,'inventoryChangePct':inventory_pct,'inventoryShares':curr_total,'foreignWeekly':inst['foreignWeekly'],'trustWeekly':inst['trustWeekly'],'dealerWeekly':inst['dealerWeekly'],'instCoverage':inst['instCoverage'],'instExpected':inst['instExpected'],'margin':None,'marginBalance':margin_now.get(c),'marginChange':round(margin_now[c]-margin_prior[c]) if c in margin_now and c in margin_prior else None,'tags':'','top':None,'rank':None,'source':'TDCC/TWSE/TPEx 官方快照'})
     for label,arr in [('gain',sorted([r for r in result if r['delta'] is not None and r['delta']>0],key=lambda x:-x['delta'])[:50]),('loss',sorted([r for r in result if r['delta'] is not None and r['delta']<0],key=lambda x:x['delta'])[:50])]:
         for i,r in enumerate(arr,1):r['top']=label;r['rank']=i
     return result
@@ -220,15 +228,16 @@ def refresh():
     warn_history=backfill_week_closes(prices,weeks.keys(),roster)
     write('prices.json',prices)
     margins,warn_margin=fill_week_margin(weeks,roster,download,read,write)
+    institutional,warn_inst=collect_institutional(weeks,prices,roster,download,read,write)
     write('universe.json',roster);write('tdcc_history.json',weeks)
     timeline=sorted(weeks);reports=[]
     for i,d in enumerate(timeline[-12:]):
         idx=timeline.index(d);p=timeline[idx-1] if idx>0 else None;q=timeline[idx-2] if idx>1 else None
         if p and (datetime.fromisoformat(d)-datetime.fromisoformat(p)).days>10:p=None;q=None
         if p and q and (datetime.fromisoformat(p)-datetime.fromisoformat(q)).days>10:q=None
-        rs=make_records(d,weeks[d],weeks[p] if p else {},weeks[q] if q else {},roster,prices,p,margins.get(d,{}),margins.get(p,{}) if p else {})
-        reports.append({'date':d,'compareDate':p,'label':d+' 官方定期快照','type':'auto','source':'臺灣集保結算所／證交所／櫃買中心','records':rs,'marketCoverage':len(rs),'warnings':warn_price+warn_roster+warn_history+warn_margin})
+        rs=make_records(d,weeks[d],weeks[p] if p else {},weeks[q] if q else {},roster,prices,p,margins.get(d,{}),margins.get(p,{}) if p else {},institutional)
+        reports.append({'date':d,'compareDate':p,'label':d+' 官方定期快照','type':'auto','source':'臺灣集保結算所／證交所／櫃買中心','records':rs,'marketCoverage':len(rs),'warnings':warn_price+warn_roster+warn_history+warn_margin+warn_inst})
     write('auto_snapshots.json',{'generatedAt':datetime.now(timezone.utc).isoformat(),'latestDate':date_tdcc,'snapshots':reports})
     print('Updated',date_tdcc,'records',len(reports[-1]['records']),'trading days',len(prices),'TDCC weeks',len(weeks))
-    for w in warn_price+warn_roster+warn_history+warn_margin:print('Warning:',w)
+    for w in warn_price+warn_roster+warn_history+warn_margin+warn_inst:print('Warning:',w)
 if __name__=='__main__':refresh()
