@@ -6,7 +6,7 @@ test("A1 requires member of actual current weekly gain TOP50",()=>{
  assert.equal(A1.evaluate({...sample,top:"loss"}),null);
 });
 test("A1 quant criteria passing never asserts absence of accounting manipulations",()=>{
- const r=A1.evaluate(sample);assert.equal(r.status,"候選待公告");assert.equal(r.announcementReviewed,false);assert.match(r.caution,/人工公告查核/);
+ const r=A1.evaluate(sample);assert.equal(r.status,"候選待公告");assert.equal(r.announcementReviewed,false);assert.match(r.caution,/人工公告核查/);
 });
 test("A1 exact thresholds and weaker thousand increase rejected",()=>{
  assert.equal(A1.evaluate({...sample,delta:1,kilo:0.01,retail:-0.01}).status,"候選待公告");
