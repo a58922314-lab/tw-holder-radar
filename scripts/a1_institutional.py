@@ -129,12 +129,11 @@ def weekly_institutional(start,end,c,market,history,prices):
     sessions=[d for d in weekdays if d in prices and len(prices[d])>=800]
     if not sessions or len(sessions)<max(1,len(weekdays)-1):
         return {'foreignWeekly':None,'trustWeekly':None,'dealerWeekly':None,'instCoverage':len(sessions),'instExpected':len(weekdays)}
-    items=[]
-    for d in sessions:
-        v=history.get(d,{}).get(market,{}).get(c)
-        if not v:return {'foreignWeekly':None,'trustWeekly':None,'dealerWeekly':None,'instCoverage':len(items),'instExpected':len(sessions)}
-        items.append(v)
-    return {'foreignWeekly':round(sum(x['foreign'] for x in items)/1000,1),
-            'trustWeekly':round(sum(x['trust'] for x in items)/1000,1),
-            'dealerWeekly':round(sum(x['dealer'] for x in items)/1000,1),
-            'instCoverage':len(items),'instExpected':len(sessions)}
+    items=[history.get(d,{}).get(market,{}).get(c) for d in sessions]
+    available=[v for v in items if v is not None]
+    if len(available)!=len(sessions):
+        return {'foreignWeekly':None,'trustWeekly':None,'dealerWeekly':None,'instCoverage':len(available),'instExpected':len(sessions)}
+    return {'foreignWeekly':round(sum(x['foreign'] for x in available)/1000,1),
+            'trustWeekly':round(sum(x['trust'] for x in available)/1000,1),
+            'dealerWeekly':round(sum(x['dealer'] for x in available)/1000,1),
+            'instCoverage':len(available),'instExpected':len(sessions)}
