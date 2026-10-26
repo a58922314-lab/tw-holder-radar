@@ -11,32 +11,45 @@ def _n(v):
 def _code(v):return bool(re.fullmatch(r'[1-9][0-9]{3}',str(v or '').strip()))
 
 def parse_twse(payload):
+    """Parse the real TWSE T86 root fields/data response (not always tables)."""
     result={}
     if not isinstance(payload,dict) or str(payload.get('stat','')).upper()!='OK':return result
-    # TWSE T86 schema shifted historically. Rely on exact unique field headings.
-    for t in payload.get('tables',[]):
+    reports=list(payload.get('tables') or [])
+    if isinstance(payload.get('data'),list):
+        reports.insert(0,{'fields':payload.get('fields',[]),'data':payload.get('data')})
+    for t in reports:
         fields=[str(x).replace(' ','').replace('（','(').replace('）',')') for x in t.get('fields',[])]
         i=lambda name:fields.index(name) if name in fields else None
         indices=[i('證券代號'),i('外陸資買賣超股數(不含外資自營商)'),
                  i('投信買賣超股數'),i('三大法人買賣超股數')]
         if any(x is None for x in indices):continue
-        ff=i('外資自營商買賣超股數')
+        fdidx=i('外資自營商買賣超股數')
         dd=i('自營商買賣超股數')
         selfidx=i('自營商買賣超股數(自行買賣)')
         hedgeidx=i('自營商買賣超股數(避險)')
         if selfidx is None or hedgeidx is None:continue
         for row in t.get('data',[]):
-            if len(row)<len(fields):continue
-            c=str(row[indices[0]]).strip()
-            if not _code(c):continue
-            f=_n(row[indices[1]]);trust=_n(row[indices[2]]);allnet=_n(row[indices[3]])
-            selfnet=_n(row[selfidx]);hedge=_n(row[hedgeidx])
-            fd=_n(row[ff]) if ff is not None else 0
-            if None in (f,trust,allnet,selfnet,hedge,fd):continue
+            if not isinstance(row,list) or not row:continue
+            if len(row)==16 and len(fields)==19 and fdidx is not None:
+                # TWSE T86 sometimes omits the three foreign-dealer columns per
+                # stock. Do not align those short rows to 19 shared headers.
+                code,f,trust,selfnet,hedge,allnet=(row[0],_n(row[4]),_n(row[7]),_n(row[11]),_n(row[14]),_n(row[15]))
+                dealer_agg=_n(row[8]);fd=0
+            elif len(row)==len(fields):
+                code=row[indices[0]]
+                f=_n(row[indices[1]]);trust=_n(row[indices[2]])
+                selfnet=_n(row[selfidx]);hedge=_n(row[hedgeidx])
+                allnet=_n(row[indices[3]])
+                dealer_agg=_n(row[dd]) if dd is not None else None
+                fd=_n(row[fdidx]) if fdidx is not None else 0
+            else:
+                continue
+            c=str(code).strip()
+            if not _code(c) or None in (f,trust,allnet,selfnet,hedge,fd):continue
             dealer=selfnet+hedge
-            if dd is not None and _n(row[dd]) != dealer:continue
-            if f+trust+dealer != allnet:continue
-            # Exclude foreign dealers: they belong to dealer aggregate.
+            if dealer_agg is not None and dealer_agg!=dealer:continue
+            if f+trust+dealer!=allnet:continue
+            # Foreign dealers are excluded: they are included in the dealer bucket.
             result[c]={'foreign':f,'trust':trust,'dealer':dealer}
     return result
 
