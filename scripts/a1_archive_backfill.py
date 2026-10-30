@@ -32,7 +32,7 @@ def _archived_snapshot(raw,d):
 def verified_archive_backfill(weeks,download):
     result=[]
     for d,snapshot in sorted(weeks.items()):
-        if not any('totalShares' not in item for item in snapshot.values()):continue
+        if not any(item.get('totalShares') is None for item in snapshot.values()):continue
         if date.fromisoformat(d).year<2025:continue
         url=f'{ARCHIVE_ROOT}/{d[:4]}/{d}.csv'
         try:
