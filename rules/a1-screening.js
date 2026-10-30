@@ -5,7 +5,7 @@
  if(root)root.A1Screening=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
  'use strict';
- const VERSION='2026.10.1';
+ const VERSION='2026.10.2';
  const finite=x=>typeof x==='number'&&Number.isFinite(x);
  const STATES={CANDIDATE:'候選待公告',PENDING:'資料待補',REJECTED:'條件未通過'};
  const price=(x,unit)=>finite(x)?(x>0?'+':'')+x.toFixed(unit||2):'待補';
@@ -23,7 +23,7 @@
    checks.push(capital);
    const f=r.foreignWeekly,t=r.trustWeekly,complete=finite(r.instCoverage)&&finite(r.instExpected)&&r.instCoverage===r.instExpected&&r.instExpected>0;
    let inst;
-   if(!finite(f)||!finite(t)||!complete)inst={key:'institution',label:'外資＋投信同週淨買超',state:'pending',text:'法人資料或完整交易日覆蓋不足（'+String(r.instCoverage??'待補')+'/'+String(r.instExpected??'待補')+'天）'+(Array.isArray(r.instMissingDates)&&r.instMissingDates.length?'，缺少 '+r.instMissingDates.join('、'):'')};
+   if(!finite(f)||!finite(t)||!complete)inst={key:'institution',label:'外資＋投信同週淨買超',state:'pending',text:'法人資料或完整交易日覆蓋不足（'+String(r.instCoverage??'待補')+'/'+String(r.instExpected??'待補')+'天）'+(Array.isArray(r.instMissingDates)&&r.instMissingDates.length?'，缺少 '+r.instMissingDates.map(d=>d+(r.instMissingReasons?.[d]==='report_not_listed'?'（官方日報未列此股，不視為零）':r.instMissingReasons?.[d]==='report_unavailable'?'（市場日報未取得）':'')).join('、'):'')};
    else inst={key:'institution',label:'外資＋投信同週淨買超',state:f+t>0?'pass':'fail',text:'外資 '+price(f,1)+'張；投信 '+price(t,1)+'張；合計 '+price(f+t,1)+'張（需 >0）'};
    checks.push(inst);
    const failed=checks.some(x=>x.state==='fail');
@@ -33,6 +33,7 @@
      // no public dataset can conclusively identify accounting cosmetics/manipulation
      announcementReviewed:false,
      caution:'僅為結構與法人交易條件通過；股本／重大訊息／關係人交易尚需人工公告核查，無法證明不是公司或關係人調整。',
+     dataComplete:!pending,
      supplementary:{holdersChange:finite(r.owners)?r.owners:null,foreignWeekly:f,trustWeekly:t}};
  }
  function summarize(records){

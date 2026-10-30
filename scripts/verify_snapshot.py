@@ -2,8 +2,12 @@
 import json
 from pathlib import Path
 from collections import Counter
+from a1_institutional import expected_sessions,weekly_institutional
 
-data=json.loads((Path(__file__).resolve().parents[1]/"data/auto_snapshots.json").read_text(encoding="utf-8"))
+root=Path(__file__).resolve().parents[1]/'data'
+data=json.loads((root/'auto_snapshots.json').read_text(encoding='utf-8'))
+calendar=json.loads((root/'trading_calendar.json').read_text(encoding='utf-8'))
+institutional=json.loads((root/'institutional_daily.json').read_text(encoding='utf-8'))
 snapshots=data.get("snapshots") or []
 assert snapshots, "No official snapshots"
 for s in snapshots:
@@ -11,6 +15,8 @@ for s in snapshots:
     codes=[r.get("code") for r in rows]
     assert len(rows)>=1200, f"Incomplete market coverage on {s.get('date')}: {len(rows)}"
     assert len(codes)==len(set(codes)), f"Duplicate ticker on {s.get('date')}"
+    markets=Counter(r.get('market') for r in rows)
+    assert markets['上市']>=800 and markets['上櫃']>=600, f"Missing market: {markets}"
     gains=[r for r in rows if r.get('top')=='gain']
     losses=[r for r in rows if r.get('top')=='loss']
     comparable=sum(isinstance(r.get('delta'),(float,int)) for r in rows)
@@ -26,6 +32,13 @@ for s in snapshots:
     for r in rows:
         if isinstance(r.get('latestPrice'),(int,float)):
             assert r['latestPrice']>0 and isinstance(r.get('latestPriceDate'),str) and len(r['latestPriceDate'])==10
+        expected=weekly_institutional(s.get('compareDate'),s['date'],r['code'],r['market'],institutional,{},calendar)
+        for key,value in expected.items():
+            assert r.get(key)==value, f"Incorrect A1 evidence {s['date']} {r['code']} {key}"
+    for market in ('上市','上櫃'):
+        pool=[r for r in gains if r['market']==market]
+        complete=sum(r.get('foreignWeekly') is not None for r in pool)
+        print(f"A1 {s['date']} {market}: pool={len(pool)} institutional_complete={complete} missing={len(pool)-complete}")
     prior=sum(isinstance(r.get('priorDelta'),(float,int)) for r in rows)
     margin_count=sum(isinstance(r.get('marginChange'),(float,int)) for r in rows)
     d1=sum(isinstance(r.get('marginChange'),(float,int)) and r['marginChange']<0 and

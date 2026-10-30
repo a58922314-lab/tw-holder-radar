@@ -33,3 +33,12 @@ test("A1 view and independent script integrated",()=>{
  assert.match(html,/a1:renderA1/);
  assert.match(html,/\.\/rules\/a1-screening\.js/);
 });
+
+test('Incomplete rejected stocks remain visible in completeness accounting',()=>{
+ const r=A1.evaluate({...sample,kilo:-1,foreignWeekly:null,instCoverage:3,instExpected:4,
+   instMissingDates:['2026-10-19'],instMissingReasons:{'2026-10-19':'report_not_listed'}});
+ assert.equal(r.status,'條件未通過');
+ assert.equal(r.dataComplete,false);
+ assert.match(r.checks.find(c=>c.key==='institution').text,/官方日報未列此股，不視為零/);
+ assert.equal(A1.evaluate({...sample,foreignWeekly:0.001,trustWeekly:0}).status,'候選待公告');
+});
