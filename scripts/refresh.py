@@ -89,7 +89,12 @@ def get_roster(old):
                 for r in raw:
                     c=str(get(r,'公司代號','SecuritiesCompanyCode','Code','公司代碼') or '').strip()
                     n=str(get(r,'公司簡稱','CompanyAbbreviation','CompanyName','公司名稱','Name') or '').strip()
-                    if code(c) and n:current[c]={'name':n,'market':market}
+                    if code(c) and n:
+                        listed=date(get(r,'上市日期','上櫃日期','DateOfListing'))
+                        if listed:datetime.fromisoformat(listed) # Reject malformed source dates.
+                        if not listed and old.get(c,{}).get('market')==market:
+                            listed=old[c].get('listingDate')
+                        current[c]={'name':n,'market':market,'listingDate':listed}
                 if len(current)<250:raise ValueError('Small roster '+str(len(current)))
                 available=current;break
             except Exception as e:warnings.append(market+': '+str(e))
@@ -207,6 +212,9 @@ def make_records(d,now,old,older,roster,prices,prevdate,margin_now=None,margin_p
     result=[]
     for c,r in roster.items():
         if c not in now:continue
+        # Current company masters also contain IPOs after older TDCC snapshots.
+        # Do not backdate those listings into historical market rankings.
+        if r.get('listingDate') and r['listingDate']>d:continue
         v=now[c];p=old.get(c);q=older.get(c)
         f=lambda k:round(v[k]-p[k],4) if p else None
         pclose=close_near(prices,prevdate,c);nclose=close_near(prices,d,c)
