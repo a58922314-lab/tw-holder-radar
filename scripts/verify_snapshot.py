@@ -8,6 +8,8 @@ root=Path(__file__).resolve().parents[1]/'data'
 data=json.loads((root/'auto_snapshots.json').read_text(encoding='utf-8'))
 calendar=json.loads((root/'trading_calendar.json').read_text(encoding='utf-8'))
 institutional=json.loads((root/'institutional_daily.json').read_text(encoding='utf-8'))
+universe=json.loads((root/'universe.json').read_text(encoding='utf-8'))
+prices=json.loads((root/'prices.json').read_text(encoding='utf-8'))
 snapshots=data.get("snapshots") or []
 assert snapshots, "No official snapshots"
 for s in snapshots:
@@ -30,6 +32,10 @@ for s in snapshots:
     if s.get('date')==data.get('latestDate') and priced<1000:
         raise AssertionError(f"Latest market closes are insufficient: {priced}/{len(rows)}")
     for r in rows:
+        assert r.get('industry')==universe[r['code']].get('industry'), 'Industry differs from official roster'
+        price=prices.get(s['date'],{}).get(r['code'])
+        assert r.get('weeklyClose')==price, 'Industry valuation must use exact week-end price'
+        assert r.get('weeklyCloseDate')==(s['date'] if price is not None else None), 'Incorrect valuation date'
         if isinstance(r.get('latestPrice'),(int,float)):
             assert r['latestPrice']>0 and isinstance(r.get('latestPriceDate'),str) and len(r['latestPriceDate'])==10
         expected=weekly_institutional(s.get('compareDate'),s['date'],r['code'],r['market'],institutional,{},calendar)
