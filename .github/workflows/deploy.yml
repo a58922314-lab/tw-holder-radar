@@ -7,6 +7,8 @@ on:
       - 'rules/d1-screening.js'
       - 'rules/a1-screening.js'
       - 'tests/a1-screening.test.cjs'
+      - 'tests/industry-flow.test.cjs'
+      - 'tests/test_a1_coverage.py'
       - 'tests/d1-screening.test.cjs'
       - 'strategy-validation.html'
       - 'strategy-validation.js'
@@ -41,6 +43,7 @@ jobs:
           node --test tests/d1-screening.test.cjs
           node --check rules/a1-screening.js
           node --test tests/a1-screening.test.cjs
+          node --test tests/industry-flow.test.cjs
       - uses: actions/configure-pages@v5
       - name: Assemble website
         run: |
