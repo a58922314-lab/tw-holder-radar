@@ -1,11 +1,60 @@
 import json
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
+from scripts import refresh
 from scripts.a1_institutional import (parse_holidays, expected_sessions,
-    collect_institutional, weekly_institutional)
+    collect_institutional, weekly_institutional, collect_calendar)
 
 
 class A1CoverageTests(unittest.TestCase):
+    def test_verified_typhoon_closure_survives_annual_calendar_refresh(self):
+        payload={'stat':'ok','queryYear':2026,'data':[
+            ['2026-10-26','光復節','補假']]}
+        write=Mock()
+        calendar,warnings=collect_calendar({'2026-10-30':{}},
+            Mock(return_value=json.dumps(payload).encode()),lambda n,d:d,write)
+        self.assertEqual(warnings,[])
+        self.assertIn('source',calendar['2026']['exceptionalClosures']['2026-10-23'])
+        dates=['2026-10-27','2026-10-28','2026-10-29','2026-10-30']
+        hist={d:{'上市':{'2330':{'foreign':1000,'trust':0,'dealer':0}}} for d in dates}
+        result=weekly_institutional('2026-10-22','2026-10-30','2330','上市',hist,{},calendar)
+        self.assertEqual(result['instSessionDates'],dates)
+        self.assertEqual((result['instCoverage'],result['instExpected'],result['foreignWeekly']),(4,4,4))
+
+    def test_company_masters_keep_official_listing_date_in_both_schemas(self):
+        listed=[{'公司代號':str(1000+i),'公司簡稱':'上市股','上市日期':'1151023','產業別':'24'} for i in range(700)]
+        otc=[{'SecuritiesCompanyCode':str(3000+i),'CompanyAbbreviation':'上櫃股','DateOfListing':'20261023','SecuritiesIndustryCode':'33'} for i in range(700)]
+        with patch.object(refresh,'download',side_effect=[json.dumps(listed).encode(),json.dumps(otc).encode()]):
+            roster,warnings=refresh.get_roster({})
+        self.assertEqual(warnings,[])
+        self.assertEqual(roster['1000']['listingDate'],'2026-10-23')
+        self.assertEqual(roster['3000']['listingDate'],'2026-10-23')
+        self.assertEqual(roster['1000']['industry'],'半導體業')
+        self.assertEqual(roster['3000']['industry'],'農業科技業')
+
+    def test_industry_valuation_uses_exact_week_close_not_future_or_stale_price(self):
+        now={'2330':{'big':60,'thousand':20,'retail':10,'owners':100}}
+        roster={'2330':{'name':'台積電','market':'上市','industry':'半導體業','industryCode':'24'}}
+        prices={'2026-10-29':{'2330':900},'2026-10-30':{'2330':1000},'2026-11-02':{'2330':1100}}
+        r=refresh.make_records('2026-10-30',now,{}, {},roster,prices,None)[0]
+        self.assertEqual((r['industry'],r['weeklyClose'],r['weeklyCloseDate']),('半導體業',1000,'2026-10-30'))
+        del prices['2026-10-30']
+        r=refresh.make_records('2026-10-30',now,{}, {},roster,prices,None)[0]
+        self.assertIsNone(r['weeklyClose'])
+        self.assertIsNone(r['weeklyCloseDate'])
+
+    def test_future_listing_cannot_displace_stock_in_historical_top50(self):
+        now={str(1000+i):{'big':60-i/10,'thousand':20,'retail':10,'owners':100} for i in range(51)}
+        prior={c:{**v,'big':v['big']-1} for c,v in now.items()}
+        roster={c:{'name':c,'market':'上市','listingDate':'2000-01-01'} for c in now}
+        roster['1000']['listingDate']='2026-10-23'
+        prior['1000']['big']=0 # Would incorrectly rank first before its IPO.
+        old=refresh.make_records('2026-10-22',now,prior,{},roster,{},'2026-10-16')
+        self.assertNotIn('1000',{r['code'] for r in old})
+        self.assertEqual(sum(r['top']=='gain' for r in old),50)
+        current=refresh.make_records('2026-10-23',now,prior,{},roster,{},'2026-10-22')
+        self.assertEqual(next(r['rank'] for r in current if r['code']=='1000'),1)
+
     def test_calendar_excludes_only_explicit_closures_not_first_trading_day(self):
         payload={'stat':'ok','queryYear':2026,'data':[
             ['2026-01-02','國曆新年開始交易日','國曆新年開始交易。'],
