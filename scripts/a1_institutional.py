@@ -5,6 +5,16 @@ from urllib.parse import quote
 
 PARSER_VERSION=3
 
+# Exceptional closures are not necessarily added to the annual holiday API.
+# Add only dates verified against an exchange announcement, never empty reports.
+VERIFIED_EXTRA_CLOSURES={
+    '2026-10-23':{
+        'reason':'颱風臨時休市',
+        'source':'https://investoredu.twse.com.tw/FileSystem/FileUpload/c91c7dff-afb0-42cc-9949-9f072bece31d.pdf',
+        'announcedAt':'2026-10-22',
+    },
+}
+
 def parse_holidays(payload,year):
     """Only explicit official closures, never infer holidays from missing quotes."""
     if str(payload.get('stat','')).lower()!='ok' or int(payload.get('queryYear',0))!=year:
@@ -31,11 +41,15 @@ def collect_calendar(weeks,download,read,write):
                                  'source':url,'sha256':hashlib.sha256(raw).hexdigest()}
         except Exception as e:
             warnings.append('A1休市表 '+str(year)+': '+str(e)[:120])
+    for d,proof in VERIFIED_EXTRA_CLOSURES.items():
+        entry=calendar.setdefault(d[:4],{})
+        entry['closedDates']=sorted(set(entry.get('closedDates',[]))|{d})
+        entry.setdefault('exceptionalClosures',{})[d]=proof
     write('trading_calendar.json',calendar)
     return calendar,warnings
 
 def expected_sessions(start,end,calendar=None):
-    closed={d for entry in (calendar or {}).values() for d in entry.get('closedDates',[])}
+    closed={d for entry in (calendar or {}).values() for d in entry.get('closedDates',[])}|set(VERIFIED_EXTRA_CLOSURES)
     return [d for d in _dates_between(start,end) if d not in closed]
 
 def _n(v):

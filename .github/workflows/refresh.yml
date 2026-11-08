@@ -7,6 +7,8 @@ on:
       - 'scripts/a1_institutional.py'
       - 'scripts/a1_archive_backfill.py'
       - 'tests/a1-screening.test.cjs'
+      - 'tests/industry-flow.test.cjs'
+      - 'tests/test_a1_coverage.py'
       - 'rules/a1-screening.js'
       - 'scripts/verify_snapshot.py'
       - 'tests/test_refresh.py'
@@ -77,6 +79,7 @@ jobs:
           node --test tests/d1-screening.test.cjs
           node --check rules/a1-screening.js
           node --test tests/a1-screening.test.cjs
+          node --test tests/industry-flow.test.cjs
       - uses: actions/configure-pages@v5
       - name: Assemble published site
         run: |
