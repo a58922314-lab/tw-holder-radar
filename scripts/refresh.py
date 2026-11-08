@@ -18,6 +18,12 @@ DATA=ROOT/'data'
 TDCC=['https://opendata.tdcc.com.tw/getOD.ashx?id=1-5','https://openapi.tdcc.com.tw/v1/opendata/1-5']
 MASTER={'上市':['https://openapi.twse.com.tw/v1/opendata/t187ap03_L'],'上櫃':['https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O','https://mopsfin.twse.com.tw/opendata/t187ap03_O.csv']}
 CLOSE={'上市':'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL','上櫃':'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes'}
+
+# TWSE/TPEx official industry codes; unknown codes remain unclassified.
+# https://www.tpex.org.tw/storage/eb_data/10802/1080500063-3.pdf
+INDUSTRIES=dict(zip(
+    '01 02 03 04 05 06 08 09 10 11 12 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38'.split(),
+    '水泥工業 食品工業 塑膠工業 紡織纖維 電機機械 電器電纜 玻璃陶瓷 造紙工業 鋼鐵工業 橡膠工業 汽車工業 建材營造 航運業 觀光餐旅 金融保險 貿易百貨 綜合 其他 化學工業 生技醫療業 油電燃氣業 半導體業 電腦及週邊設備業 光電業 通信網路業 電子零組件業 電子通路業 資訊服務業 其他電子業 文化創意業 農業科技業 電子商務 綠能環保 數位雲端 運動休閒 居家生活'.split()))
 def download(url):
     for i in range(3):
         try:
@@ -94,7 +100,12 @@ def get_roster(old):
                         if listed:datetime.fromisoformat(listed) # Reject malformed source dates.
                         if not listed and old.get(c,{}).get('market')==market:
                             listed=old[c].get('listingDate')
-                        current[c]={'name':n,'market':market,'listingDate':listed}
+                        industry=str(get(r,'產業別','SecuritiesIndustryCode') or '').strip().zfill(2)
+                        current[c]={'name':n,'market':market,'listingDate':listed,
+                                    'industryCode':industry if industry!='00' else None,
+                                    'industry':INDUSTRIES.get(industry),
+                                    'industrySource':url,
+                                    'industryAsOf':date(get(r,'出表日期','Date')) or datetime.now(timezone.utc).date().isoformat()}
                 if len(current)<250:raise ValueError('Small roster '+str(len(current)))
                 available=current;break
             except Exception as e:warnings.append(market+': '+str(e))
@@ -223,7 +234,13 @@ def make_records(d,now,old,older,roster,prices,prevdate,margin_now=None,margin_p
         inventory_pct=round((curr_total/prev_total-1)*100,4) if curr_total and prev_total else None
         inst=weekly_institutional(prevdate,d,c,r['market'],institutional,prices,calendar)
         weekly=round(100*(nclose/pclose-1),2) if pclose and nclose else None
+        # Value weekly share flows only at the exact period-end official close.
+        # Never use latest_close(), which can be later than a historical week.
+        week_price=prices.get(d,{}).get(c)
         result.append({'code':c,'name':r['name'],'market':r['market'],'delta':f('big'),'priorDelta':round(p['big']-q['big'],4) if p and q else None,'kilo':f('thousand'),'retail':f('retail'),'owners':round(v['owners']-p['owners']) if p and v['owners'] is not None and p['owners'] is not None else None,'returnPct':weekly,'latestPrice':latest_price,'latestPriceDate':latest_price_date,'inventoryChangePct':inventory_pct,'inventoryShares':curr_total,'inventoryDataSource':('archived_tdcc_csv_crosschecked' if p and p.get('totalSharesSource')=='tdcc_csv_independent_archive_verified' else 'tdcc_current_openapi') if inventory_pct is not None else None,'foreignWeekly':inst['foreignWeekly'],'trustWeekly':inst['trustWeekly'],'dealerWeekly':inst['dealerWeekly'],'instCoverage':inst['instCoverage'],'instExpected':inst['instExpected'],'instMissingDates':inst.get('instMissingDates',[]),'instMissingReasons':inst.get('instMissingReasons',{}),'instSessionDates':inst.get('instSessionDates',[]),'margin':None,'marginBalance':margin_now.get(c),'marginChange':round(margin_now[c]-margin_prior[c]) if c in margin_now and c in margin_prior else None,'tags':'','top':None,'rank':None,'source':'TDCC/TWSE/TPEx 官方快照'})
+        result[-1].update({'industry':r.get('industry'),'industryCode':r.get('industryCode'),
+                           'industryAsOf':r.get('industryAsOf'),'industrySource':r.get('industrySource'),
+                           'weeklyClose':week_price,'weeklyCloseDate':d if week_price is not None else None})
     for label,arr in [('gain',sorted([r for r in result if r['delta'] is not None and r['delta']>0],key=lambda x:-x['delta'])[:50]),('loss',sorted([r for r in result if r['delta'] is not None and r['delta']<0],key=lambda x:x['delta'])[:50])]:
         for i,r in enumerate(arr,1):r['top']=label;r['rank']=i
     return result
