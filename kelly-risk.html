@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>凱利資金控管｜大戶換手雷達</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0d11;--panel:#151a20;--line:#303741;--gold:#e0bd74;--text:#f5f3ed;--muted:#aeb3bd;--green:#32bd87;--red:#eb737b;font-family:Inter,"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 0 0,#292217,transparent 42%),var(--bg);color:var(--text);line-height:1.6}main{max-width:1160px;margin:auto;padding:28px 20px 80px}a{color:var(--gold)}header{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}.back{text-decoration:none;border:1px solid var(--line);padding:10px 14px;border-radius:10px}.eyebrow{color:var(--gold);font-size:11px;letter-spacing:2px;font-weight:800}h1{font-size:clamp(28px,4.5vw,42px);margin:24px 0 10px;line-height:1.2}h2{font-size:18px;margin:0 0 14px}.lead{color:var(--muted);max-width:930px}.banner{border:1px solid #715c37;background:#272114;border-radius:12px;padding:14px 17px;margin:20px 0;line-height:1.8}.panel{border:1px solid var(--line);border-radius:17px;background:var(--panel);padding:24px}.layout{display:grid;grid-template-columns:minmax(320px,1.05fr) minmax(330px,.95fr);gap:18px;align-items:start}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.field{display:grid;gap:5px;font-size:12px;color:var(--muted);font-weight:650}.field input,.field select{width:100%;background:#0e1217;color:var(--text);padding:11px 10px;border:1px solid #444c57;border-radius:9px;font-size:16px;font-variant-numeric:tabular-nums}.field input:focus,.field select:focus{outline:2px solid var(--gold);outline-offset:1px}.full{grid-column:1/-1}.hint{font-size:12px;color:var(--muted);line-height:1.75;margin:10px 0 0}.subheading{font-size:12px;color:var(--gold);font-weight:800;letter-spacing:.6px;margin:23px 0 12px;border-top:1px solid var(--line);padding-top:16px}.results{display:grid;gap:12px}.stat{padding:15px;border:1px solid var(--line);background:#1c2229;border-radius:12px}.stat .name{font-size:12px;color:var(--muted)}.stat strong{display:block;font-size:27px;line-height:1.3;font-variant-numeric:tabular-nums;margin-top:6px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.good{color:var(--green)}.bad{color:var(--red)}.muted{color:var(--muted)}.status{border-radius:10px;padding:12px;border:1px solid #635130;color:#ffdfa3;background:#282116;font-size:13px;white-space:pre-line}.status.error{border-color:#75363d;color:#ffb9be;background:#28181b}.details{display:grid;gap:10px}.details>div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-bottom:9px;font-size:13px}.details>div span{color:var(--muted)}.details>div strong{text-align:right;font-variant-numeric:tabular-nums}.bar{height:7px;background:#383e47;border-radius:10px;overflow:hidden;margin-top:8px}.bar>div{height:100%;background:var(--gold);max-width:100%;min-width:0}.button{border:1px solid var(--line);background:#22272d;color:var(--text);padding:10px 14px;border-radius:9px;cursor:pointer;font:inherit}.button:hover{border-color:var(--gold)}.button:focus-visible,.back:focus-visible{outline:2px solid white;outline-offset:3px}.foot{margin-top:24px;font-size:12px;color:var(--muted);line-height:1.8}@media(max-width:800px){.layout{grid-template-columns:1fr}}@media(max-width:430px){.fields{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.panel{padding:17px}}
+</style>
+</head>
+<body><main>
+<header><strong class="eyebrow">TW HOLDER RADAR · POSITION SIZING</strong><a class="back" href="./index.html">← 返回大戶換手雷達</a></header>
+<h1>凱利資金控管工作台</h1>
+<p class="lead">依據 Edward O. Thorp 的分數凱利概念，將「交易優勢」轉換為「可承擔的資金部位」，並加入單筆虧損、單股集中、總曝險與整股交易限制。</p>
+<div class="banner"><strong>研究試算版，非自動回測。</strong> A1／D1 籌碼條件不是歷史勝率。本頁數據必須自行輸入或由未來正式回測提供；初始數字都是<strong>示範假設</strong>，不代表任何股票的真實報酬。本站不連券商、不下單，也不保存你的財務輸入。</div>
+<div class="layout">
+<section class="panel" aria-label="資金控管輸入">
+<h2>01 · 交易情境</h2>
+<div class="fields">
+<label class="field">股票代號（選填）<input id="stockCode" maxlength="10" placeholder="例如 6257" autocomplete="off"></label>
+<label class="field">股票名稱（選填）<input id="stockName" maxlength="35" placeholder="例如 矽格" autocomplete="off"></label>
+<label class="field">策略分類<select id="signal"><option>A1</option><option selected>D1</option><option>D1+</option><option>C2+</option><option>C1</option><option>其他</option></select></label>
+<label class="field">參考成交價格（元）<input id="price" type="number" min="0.01" step="0.01" value="80"></label>
+<div class="full hint" id="quoteNote">參考價預設為示範值 80 元，並非即時行情。</div>
+<label class="field">帳戶總資金（元）<input id="capital" type="number" min="1" step="1000" value="1000000"></label>
+<label class="field">已使用資金（元）<input id="usedCapital" type="number" min="0" step="1000" value="0"></label>
+</div>
+<div class="subheading">02 · 策略歷史表現（需自行驗證）</div>
+<div class="fields">
+<label class="field">勝率（%）<input id="winRate" type="number" min="0" max="100" step="0.1" value="40"></label>
+<label class="field">平均獲利／停利（%）<input id="takeProfitPct" type="number" min="0.1" max="500" step="0.1" value="10"></label>
+<label class="field">平均虧損／停損（%）<input id="stopLossPct" type="number" min="0.1" max="99.9" step="0.1" value="5"></label>
+<label class="field">來回交易成本估計（%）<input id="costPct" type="number" min="0" max="100" step="0.05" value="0.6"></label>
+<label class="field">已完成交易筆數<input id="sampleSize" type="number" min="0" step="1" value="0"></label>
+<label class="field">凱利使用比例<select id="fraction"><option value="0.25">¼ 凱利（保守）</option><option value="0.5" selected>½ 凱利（預設）</option><option value="1">滿額凱利（高風險）</option></select></label>
+</div>
+<p class="hint">勝率與平均賺賠幅度應取自相同策略、相同出場規則的已完成交易。若只知道固定停利停損，這只是簡化的二元模型。交易成本為買賣手續費、證交稅與滑價的總估計，非即時報價。</p>
+<div class="subheading">03 · 強制風控上限</div>
+<div class="fields">
+<label class="field">單筆帳戶最大虧損（%）<input id="riskPct" type="number" min="0" max="100" step="0.1" value="0.5"></label>
+<label class="field">單股最多投入資金（%）<input id="maxPositionPct" type="number" min="0" max="100" step="1" value="20"></label>
+<label class="field">投資組合最多總曝險（%）<input id="maxPortfolioPct" type="number" min="0" max="100" step="1" value="60"></label>
+<label class="field">交易單位<select id="lotSize"><option value="1000" selected>整張 1,000 股</option><option value="1">零股 1 股</option></select></label>
+</div>
+<p class="hint">「已使用資金」應包含其他持股的目前估計市值。輸出將取所有上限的最小值，不能因滿額凱利過高而使用槓桿。跳空跌停、無成交與極端波動可能讓實際虧損超過設定上限。</p>
+</section>
+<section class="panel" aria-label="資金控管結果">
+<h2>即時試算結果</h2>
+<div class="results">
+<div id="status" class="status" role="status" aria-live="polite">等待試算</div>
+<div class="grid">
+<div class="stat"><div class="name">理論滿額凱利</div><strong id="fullKelly">—</strong></div>
+<div class="stat"><div class="name">分數凱利理論部位</div><strong id="fractionalKelly">—</strong></div>
+</div>
+<div class="stat"><div class="name">風控後可投入金額上限</div><strong id="budget">—</strong><div class="bar"><div id="budgetBar" style="width:0"></div></div><p class="hint" id="bindingNote">—</p></div>
+<div class="grid">
+<div class="stat"><div class="name">可買股數</div><strong id="shares">—</strong></div>
+<div class="stat"><div class="name">實際整股投入金額</div><strong id="actualCapital">—</strong></div>
+</div>
+<div class="details" aria-label="試算詳情">
+<div><span>扣除成本後期望報酬／每次交易</span><strong id="expectation">—</strong></div>
+<div><span>損益兩平所需勝率</span><strong id="breakEven">—</strong></div>
+<div><span>理論停利價</span><strong id="targetPrice">—</strong></div>
+<div><span>理論停損價</span><strong id="stopPrice">—</strong></div>
+<div><span>實際部位預估停損金額</span><strong id="maxLoss">—</strong></div>
+<div><span>實際部位預估停利淨收益</span><strong id="potentialProfit">—</strong></div>
+<div><span>實際部位占帳戶資金</span><strong id="exposure">—</strong></div>
+<div><span>有效單筆帳戶風險</span><strong id="effectiveRisk">—</strong></div>
+</div>
+<div class="subheading">計算口徑與限制</div>
+<p class="hint">採二元固定賺賠模型，最大化每筆交易後帳戶財富的預期對數值。所有百分比均以「整個持股本金」為基準，不是以停損金額為下注本金。價差以預設輸入價計算，並未獨立涵蓋跳空、漲跌停、股利、除權息、借券與相關策略高度重疊風險。</p>
+<p class="hint">若歷史勝率、賺賠比或報酬分布不可靠，凱利值也不可靠。即使筆數很多，也必須有樣本外／前瞻檢驗；本頁<strong>不會自動認證</strong>策略具備優勢。</p>
+</div>
+</section>
+</div>
+<p class="foot">核心概念：Edward O. Thorp, <a href="https://web.williams.edu/Mathematics/sjmiller/public_html/341/handouts/Thorpe_KellyCriterion2007.pdf" target="_blank" rel="noopener noreferrer">The Kelly Criterion in Blackjack, Sports Betting, and the Stock Market</a>。這是教育性研究介面，不構成個別證券投資建議。</p>
+</main>
+<script src="./rules/kelly-risk.js"></script><script src="./kelly-risk.js"></script>
+</body></html>
