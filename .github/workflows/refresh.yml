@@ -80,6 +80,9 @@ jobs:
           node --check rules/a1-screening.js
           node --test tests/a1-screening.test.cjs
           node --test tests/industry-flow.test.cjs
+          node --check rules/kelly-risk.js
+          node --check kelly-risk.js
+          node --test tests/kelly-risk.test.cjs
       - uses: actions/configure-pages@v5
       - name: Assemble published site
         run: |
@@ -90,6 +93,9 @@ jobs:
           cp rules/a1-screening.js _site/rules/a1-screening.js
           cp strategy-validation.html _site/strategy-validation.html
           cp strategy-validation.js _site/strategy-validation.js
+          cp kelly-risk.html _site/kelly-risk.html
+          cp kelly-risk.js _site/kelly-risk.js
+          cp rules/kelly-risk.js _site/rules/kelly-risk.js
           if [ -f data/auto_snapshots.json ]; then
             cp data/auto_snapshots.json _site/data/auto_snapshots.json
           else
