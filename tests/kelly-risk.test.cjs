@@ -61,3 +61,17 @@ test("no history and signal names do not change expected results",()=>{
   assert.equal(b.verifiedHistory,false);
   assert.equal(b.needsEvidence,false);
 });
+
+test("website links planner and both workflows package it",()=>{
+ const fs=require("node:fs");
+ const path=require("node:path");
+ const root=path.resolve(__dirname,"..");
+ const index=fs.readFileSync(path.join(root,"index.html"),"utf8");
+ assert.match(index,/href="\.\/kelly-risk\.html"/);
+ assert.match(index,/使用凱利資金控管試算/);
+ for(const file of ["deploy.yml","refresh.yml"]){
+   const workflow=fs.readFileSync(path.join(root,".github/workflows",file),"utf8");
+   assert.match(workflow,/cp kelly-risk\.html _site\/kelly-risk\.html/);
+   assert.match(workflow,/node --test tests\/kelly-risk\.test\.cjs/);
+ }
+});
