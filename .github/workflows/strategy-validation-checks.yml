@@ -4,6 +4,10 @@ on:
     paths:
       - 'strategy-validation.html'
       - 'strategy-validation.js'
+      - 'kelly-risk.html'
+      - 'kelly-risk.js'
+      - 'rules/kelly-risk.js'
+      - 'tests/kelly-risk.test.cjs'
       - 'tests/test_strategy_validation.cjs'
       - '.github/workflows/strategy-validation-checks.yml'
   workflow_dispatch:
@@ -19,3 +23,8 @@ jobs:
           node-version: '22'
       - run: node --check strategy-validation.js
       - run: node tests/test_strategy_validation.cjs
+      - run: node --check rules/kelly-risk.js
+      - run: node --check kelly-risk.js
+      - run: node --test tests/kelly-risk.test.cjs
+      - run: node --test tests/d1-screening.test.cjs
+      - run: node --test tests/a1-screening.test.cjs
