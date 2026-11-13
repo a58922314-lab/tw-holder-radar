@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VCP 縮量待突破｜大戶籌碼雷達</title><meta name="theme-color" content="#0b0d11">
+<style>
+:root{color-scheme:dark;--bg:#0b0d11;--panel:#171c23;--border:#363b40;--text:#f4f2ee;--muted:#a4aab3;--gold:#e0bd74;--red:#ea8385;--green:#66d6ad;font-family:Inter,"Microsoft JhengHei",system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;color:var(--text);background:radial-gradient(ellipse at top left,#302619 0%,transparent 36%),var(--bg);font-size:14px;line-height:1.65}button,input,select{font:inherit}a{color:var(--gold);text-decoration:none}a:hover{text-decoration:underline}.wrap{max-width:1500px;margin:auto;padding:28px 24px 70px}.top{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}.brand{font-size:12px;color:var(--gold);letter-spacing:2px;font-weight:800}h1{margin:22px 0 5px;font-size:clamp(25px,3.8vw,42px)}.sub{color:var(--muted);max-width:940px}.panel{background:linear-gradient(140deg,#1b1f26,#10151a);border:1px solid var(--border);border-radius:14px;padding:18px;margin-top:19px}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:23px}.stat{background:#191f26;padding:18px;border:1px solid #323a40;border-radius:12px}.stat strong{font-size:27px;display:block;line-height:1.4;color:var(--gold)}.stat label{font-size:12px;color:#b2b5b8}.controls{display:flex;align-items:end;gap:10px;flex-wrap:wrap}.controls label{display:grid;gap:5px;color:#afb6bb;font-size:12px}.control,.btn{background:#1e252c;border:1px solid #46505a;border-radius:9px;padding:9px 12px;color:var(--text)}.btn{cursor:pointer;font-weight:750}.btn.primary{background:var(--gold);border-color:var(--gold);color:#221c12}.btn:hover{filter:brightness(1.12)}.note{font-size:12px;color:#b9c2c7;line-height:1.85;margin:14px 0}.warn{border-left:3px solid #d9a44f;padding:11px 15px;background:#322819;color:#f3daa8;border-radius:6px;margin:16px 0}.tablearea{overflow:auto;border:1px solid #3b4248;border-radius:12px;margin-top:16px}table{border-collapse:collapse;width:100%;min-width:1150px;font-variant-numeric:tabular-nums}th{background:#212730;color:#dcc08a;text-align:left;font-size:12px;padding:12px 10px;white-space:nowrap}td{padding:13px 10px;border-bottom:1px solid #2b3239;white-space:nowrap}tr:last-child td{border-bottom:0}tbody tr:hover{background:#202b32}.code{font-size:11px;color:var(--gold)}.name{font-weight:800}.small{font-size:11px;color:var(--muted)}.big{font-weight:800}.good{color:var(--green)}.bad{color:var(--red)}.tag{background:#342c1d;border:1px solid #715e3e;color:#edcf92;border-radius:6px;padding:4px 6px;font-size:11px;display:inline-block}.tag.cool{background:#183028;border-color:#426b59;color:#a6e3c5}.empty{text-align:center;padding:45px 20px;color:#bec7cc}.chartbar{height:6px;background:#30383e;border-radius:10px;overflow:hidden;margin-top:5px}.bar{height:100%;background:var(--gold)}.footer{margin-top:25px;color:#929ca0;font-size:12px}a.back{display:inline-flex;align-items:center;gap:8px}.loading{opacity:.75}
+@media(max-width:720px){.wrap{padding:16px 12px 45px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat{padding:12px}.stat strong{font-size:23px}.panel{padding:13px}}
+</style>
+</head>
+<body><main class="wrap">
+<header class="top"><div class="brand">TAIWAN HOLDER RADAR · TECHNICAL WATCHLIST</div><a class="back" href="./index.html">← 返回大戶籌碼雷達</a></header>
+<h1>VCP 縮量待突破雷達</h1>
+<div class="sub">每日盤後尋找距離整理區樞紐 1%～3%、量能退潮的股票，再和你原本的大戶、散戶與法人資料交叉檢查。這裡顯示的是<strong>觀察候選</strong>，不是已確認突破或買進指令。</div>
+<div id="stats" class="stats">
+<div class="stat"><label>目前候選</label><strong id="candidateCount">—</strong></div>
+<div class="stat"><label>歷史行情日數</label><strong id="sessionCount">—</strong></div>
+<div class="stat"><label>足夠K線的股票</label><strong id="coveredCount">—</strong></div>
+<div class="stat"><label>行情日期</label><strong id="marketDates" style="font-size:14px">—</strong></div>
+</div>
+<div id="notice" class="warn loading">正在讀取已發布的 VCP 掃描結果…</div>
+<section class="panel">
+<div class="controls">
+<label>市場<select class="control" id="market"><option value="all">上市＋上櫃</option><option value="上市">上市</option><option value="上櫃">上櫃</option></select></label>
+<label>距樞紐價<select class="control" id="distance"><option value="all">1%～3%</option><option value="near">1%～2%</option><option value="far">2%～3%</option></select></label>
+<label>籌碼交叉<select class="control" id="holder"><option value="all">不限籌碼</option><option value="big">大戶週增加</option><option value="both">大戶增＋散戶減</option><option value="strong">大戶增＋散戶減＋法人買</option></select></label>
+<label>搜尋代號／名稱<input class="control" id="search" placeholder="例如 6257 矽格"></label>
+<button class="btn primary" id="reload">↻ 檢查已發布資料</button>
+<button class="btn" id="export">↓ CSV 匯出</button>
+</div>
+<p class="note" id="filterNote">技術條件使用 3×25 交易日固定區間近似 VCP；目前不是波段轉折點偵測。股價必須仍低於最近 25 日高點樞紐。量縮參考突破前 10 日／50 日均量，並以當日 500 張作流動性門檻。</p>
+<div class="tablearea"><table>
+<thead><tr><th>股票</th><th>最新收盤<br><span class="small">技術行情日期</span></th><th>樞紐價</th><th>距突破</th><th>三段收縮</th><th>量縮比<br><span class="small">10日/50日</span></th><th>大戶週Δ<br><span class="small">pp</span></th><th>散戶週Δ<br><span class="small">pp</span></th><th>法人合計週Δ<br><span class="small">張</span></th><th>評級／籌碼</th></tr></thead>
+<tbody id="results"><tr><td colspan="10" class="empty">載入中…</td></tr></tbody></table></div>
+<div id="shown" class="note"></div>
+</section>
+<div class="panel">
+<strong>資料判讀與限制</strong>
+<p class="note">行情：TWSE／TPEx 官方盤後日資料；歷史 K 線由自動排程逐次回補。週籌碼：TDCC＋證交所／櫃買中心；週別與行情日未必相同。僅在完整比對週法人報表時顯示週淨買賣，否則標示待補。首次蒐集時可能還沒有足夠的 76 根日 K，不能把 0 個候選當成沒有 VCP 股票。</p>
+<p class="note">當歷史有 220 根以上才另外檢查 50／150／200 日均線與 200 日線上揚；250 根以上再加入 52 週高低點位置。早期訊號一律標示「初步觀察」，不等同 Minervini 完整趨勢樣板。未調整除權息與減資，遇到股本變化需人工核對；突破也有失敗風險。</p>
+</div>
+<footer class="footer">僅供研究，不構成投資建議。按「檢查已發布資料」只重新讀取 GitHub Pages 已公布的掃描，不會觸發後端重新抓價。</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const valid=n=>typeof n==='number'&&Number.isFinite(n);
+const num=(n,d=2)=>valid(n)?n.toFixed(d):'—';
+let candidates=[], latest={}; let report=null; let filtered=[];
+function holderDetails(c){
+  const r=latest[c.code]||{};
+  const finished=valid(r.instExpected)&&r.instExpected>0&&r.instCoverage===r.instExpected;
+  const flow=finished&&valid(r.foreignWeekly)&&valid(r.trustWeekly)?r.foreignWeekly+r.trustWeekly:null;
+  const capitalSafe=!valid(r.inventoryChangePct)||Math.abs(r.inventoryChangePct)<=0.5;
+  const common=valid(r.delta)&&r.delta>0&&valid(r.retail)&&r.retail<0;
+  return {r,flow,common,positive:common&&capitalSafe&&valid(flow)&&flow>0};
+}
+function visible(){
+ const q=$('search').value.trim().toLowerCase(), market=$('market').value,
+       dist=$('distance').value, holder=$('holder').value;
+ filtered=candidates.filter(c=>{
+   const h=holderDetails(c);
+   if(market!=='all'&&c.market!==market)return false;
+   if(dist==='near'&&c.distancePct>2)return false;
+   if(dist==='far'&&c.distancePct<=2)return false;
+   if(q&&!String(c.code).includes(q)&&!String(c.name).toLowerCase().includes(q))return false;
+   if(holder==='big'&&!(valid(h.r.delta)&&h.r.delta>0))return false;
+   if(holder==='both'&&!h.common)return false;
+   if(holder==='strong'&&!h.positive)return false;
+   return true;
+ });
+ render();
+}
+function render(){
+ const rows=filtered.map(c=>{
+   const {r,flow,common,positive}=holderDetails(c);
+   const tier=positive?'籌碼共振':common?'大戶增＋散戶減':'籌碼待觀察';
+   const capitalReview=valid(r.inventoryChangePct)&&Math.abs(r.inventoryChangePct)>0.5;
+   return '<tr><td><span class="code">'+esc(c.code)+'</span> <span class="name">'+esc(c.name)+'</span><div class="small">'+esc(c.market)+'</div></td>'+
+     '<td class="big">'+num(c.close)+'<div class="small">'+esc(c.date)+'</div></td>'+
+     '<td class="big">'+num(c.pivot)+'</td><td class="big good">'+num(c.distancePct)+'%<div class="chartbar"><div class="bar" style="width:'+Math.round(100*(3-c.distancePct)/2)+'%"></div></div></td>'+
+     '<td>'+c.depthsPct.map(x=>num(x,1)+'%').join(' → ')+'</td>'+
+     '<td>'+num(c.dryRatio,3)+'<div class="small">'+num(c.volumeLots,0)+' 張</div></td>'+
+     '<td class="'+(r.delta>0?'good':'bad')+'">'+(valid(r.delta)?num(r.delta)+' pp':'待補')+'</td>'+
+     '<td class="'+(r.retail<0?'good':'bad')+'">'+(valid(r.retail)?num(r.retail)+' pp':'待補')+'</td>'+
+     '<td class="'+(flow>0?'good':'bad')+'">'+(valid(flow)?Math.round(flow).toLocaleString('zh-TW'):'待補')+'</td>'+
+     '<td><span class="tag">'+esc(c.grade)+'</span> <span class="tag '+(positive?'cool':'')+'">'+tier+'</span>'+(capitalReview?'<div class="small bad">集保庫存異動待核對</div>':'')+'</td></tr>';
+ }).join('');
+ $('results').innerHTML=rows||'<tr><td colspan="10" class="empty"><strong>目前沒有符合所選條件的候選</strong><div>可能是行情歷史尚未累積完整，或篩選條件較嚴格；可試試「不限籌碼」。</div></td></tr>';
+ $('shown').textContent='符合篩選：'+filtered.length+' 檔；最近一筆週籌碼日期：'+(window.holderDate||'待補')+'。所有結果皆為收盤後資料，不是即時報價。';
+}
+async function load(){
+ $('notice').textContent='正在比對網站已發布的官方行情與週籌碼…';
+ try{
+   const [v,w]=await Promise.all([
+     fetch('./data/vcp_signals.json?v='+Date.now(),{cache:'no-store'}),
+     fetch('./data/auto_snapshots.json?v='+Date.now(),{cache:'no-store'})
+   ]);
+   if(!v.ok)throw Error('找不到 VCP 技術資料（HTTP '+v.status+'），請檢查資料更新工作流程');
+   report=await v.json();
+   if(!Array.isArray(report.candidates))throw Error('VCP 文件格式不正確');
+   candidates=report.candidates;
+   latest={};
+   if(w.ok){
+     const h=await w.json();
+     const s=(h.snapshots||[]).filter(x=>x.type==='auto').sort((a,b)=>a.date.localeCompare(b.date)).at(-1);
+     if(s){window.holderDate=s.date;for(const r of s.records||[])latest[r.code]=r;}
+   }
+   $('candidateCount').textContent=report.candidateCount??candidates.length;
+   $('sessionCount').textContent=report.storedSessions??0;
+   $('coveredCount').textContent=report.eligibleStocks??0;
+   $('marketDates').innerHTML='上市 '+esc(report.marketAsOf?.['上市']||'待補')+'<div style="font-size:13px">上櫃 '+esc(report.marketAsOf?.['上櫃']||'待補')+'</div>';
+   const created=report.generatedAt?new Date(report.generatedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false}):'未知';
+   const insufficient=(report.eligibleStocks||0)===0;
+   $('notice').innerHTML=insufficient?
+     '<strong>歷史行情正在累積：</strong>目前尚無股票達到至少 76 根有效日 K 的門檻，不能判定 VCP。已儲存 '+esc(report.storedSessions||0)+' 個交易日。資料最後產製：'+esc(created)+'。':
+     '<strong>已讀取官方盤後掃描：</strong>資料產製：'+esc(created)+'；符合技術條件 '+candidates.length+' 檔。'+(report.warnings?.length?' 部分資料源仍有缺漏，請查看 GitHub Actions。':'');
+   visible();
+ }catch(e){$('notice').innerHTML='<strong>尚無可驗證 VCP 結果：</strong>'+esc(e.message)+'。頁面不會顯示假資料。';$('results').innerHTML='<tr><td class="empty" colspan="10">尚未建立有效掃描，請檢查 GitHub Actions 的 Weekly TDCC holding updates 執行狀態。</td></tr>';}
+}
+for(const id of ['search','market','distance','holder'])$(id).addEventListener(id==='search'?'input':'change',visible);
+$('reload').addEventListener('click',load);
+$('export').addEventListener('click',()=>{
+ const headers=['date','code','name','market','close','pivot','distancePct','dryRatio','depth1','depth2','depth3','bigHolderDeltaPP','retailDeltaPP','institutionNetLots'];
+ const lines=[headers.join(',')];
+ for(const c of filtered){
+   const {r,flow}=holderDetails(c);
+   lines.push([c.date,c.code,c.name,c.market,c.close,c.pivot,c.distancePct,c.dryRatio,...c.depthsPct,r.delta??'',r.retail??'',flow??''].map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(','));
+ }
+ const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download='VCP縮量待突破_'+(report?.marketAsOf?.['上市']||'未更新')+'.csv';a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+load();
+</script>
+</body></html>
