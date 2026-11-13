@@ -268,6 +268,20 @@ def refresh():
         rs=make_records(d,weeks[d],weeks[p] if p else {},weeks[q] if q else {},roster,prices,p,margins.get(d,{}),margins.get(p,{}) if p else {},institutional,calendar)
         reports.append({'date':d,'compareDate':p,'label':d+' 官方定期快照','type':'auto','source':'臺灣集保結算所／證交所／櫃買中心','records':rs,'marketCoverage':len(rs),'warnings':warn_price+warn_roster+warn_history+warn_margin+warn_inst})
     write('auto_snapshots.json',{'generatedAt':datetime.now(timezone.utc).isoformat(),'latestDate':date_tdcc,'snapshots':reports})
+    # Independent technical radar: keep valid weekly data even if daily OHLCV endpoint fails.
+    try:
+        try:
+            from scripts.vcp_daily import collect as collect_vcp
+        except ModuleNotFoundError:
+            from vcp_daily import collect as collect_vcp
+        vcp = collect_vcp(roster,download,read,write)
+        print('VCP:',vcp['candidateCount'],'watch candidates;',
+              vcp['storedSessions'],'daily sessions;',
+              vcp['eligibleStocks'],'stocks with enough history')
+        for msg in vcp['warnings']:
+            print('VCP warning:',msg)
+    except Exception as exc:
+        print('VCP collection unavailable (weekly holder data still valid):',str(exc))
     print('Updated',date_tdcc,'records',len(reports[-1]['records']),'trading days',len(prices),'TDCC weeks',len(weeks))
     print('A1 backfill verified:',archival_recovered)
     for w in warn_price+warn_roster+warn_history+warn_margin+warn_inst:print('Warning:',w)
