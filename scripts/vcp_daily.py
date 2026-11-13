@@ -84,14 +84,13 @@ def _parse_row(r, day):
 
 def parse_latest(payload, market):
     """Validate source dates and named fields instead of guessing column offsets."""
-    from scripts.refresh import date as parse_date
     if not isinstance(payload, list):
         raise ValueError("Latest feed not a list")
     group = defaultdict(dict)
     for r in payload:
         if not isinstance(r, dict):
             continue
-        day = _iso(_get(r, "Date", "date")) or parse_date(_get(r, "Date", "date"))
+        day = _iso(_get(r, "Date", "date"))
         if day:
             row = _parse_row(r, day)
             if row:
