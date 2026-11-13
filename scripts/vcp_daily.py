@@ -179,12 +179,16 @@ def scan_one(bars):
         l = min(x[3] for x in seg)
         depths.append((h - l) / h * 100)
     d1, d2, d3 = depths
-    if not (d1 >= 10 and d1 > d2 > d3 and d3 <= 10):
-        return None
-
     v50 = _mean([x[5] for x in prev[-50:]])
     v10 = _mean([x[5] for x in prev[-10:]])
-    if v50 <= 0 or v10 / v50 >= 0.7:
+    if v50 <= 0:
+        return None
+    dry = v10 / v50
+    # Separate a strict three-stage pattern from a looser but still contracting
+    # watchlist. Never describe the looser tier as a confirmed VCP.
+    strict = d1 >= 10 and d1 > d2 > d3 and d3 <= 10 and dry < 0.7
+    watch = d3 <= 12 and dry < 0.9
+    if not (strict or watch):
         return None
     pivot = max(x[2] for x in segments[-1])
     distance = (pivot / close - 1) * 100
@@ -194,10 +198,12 @@ def scan_one(bars):
         "date": day, "close": round(close, 2), "pivot": round(pivot, 2),
         "distancePct": round(distance, 2),
         "depthsPct": [round(x, 2) for x in depths],
-        "dryRatio": round(v10 / v50, 3),
+        "dryRatio": round(dry, 3),
         "volumeLots": round(volume, 1),
         "bars": len(bars),
-        "grade": "完整趨勢" if len(bars) >= 250 else ("均線趨勢" if len(bars) >= 220 else "初步觀察"),
+        "grade": "嚴格三段收縮" if strict else "縮量近樞紐",
+        "strict": strict,
+        "trendGrade": "完整趨勢" if len(bars) >= 250 else ("均線趨勢" if len(bars) >= 220 else "初步趨勢"),
     }
 
 
@@ -302,7 +308,8 @@ def collect(roster, download, read, write, batch=BACKFILL_PER_RUN):
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "marketAsOf": by_market_date, "storedSessions": len(days),
         "eligibleStocks": covered, "candidateCount": len(candidates),
-        "model": "25+25+25 日固定區間近似 VCP；不是完整波段辨識或買進建議",
+        "strictCandidateCount": sum(1 for c in candidates if c["strict"]),
+        "model": "近樞紐縮量觀察：末段振幅≤12%、量縮比<0.9；嚴格三段版再要求逐段收縮且量縮比<0.7；不是完整波段 VCP",
         "warnings": warnings[:25], "candidates": candidates
     }
     write("vcp_signals.json", result)
