@@ -52,7 +52,7 @@ function holderDetails(c){
   const r=latest[c.code]||{};
   const finished=valid(r.instExpected)&&r.instExpected>0&&r.instCoverage===r.instExpected;
   const flow=finished&&valid(r.foreignWeekly)&&valid(r.trustWeekly)?r.foreignWeekly+r.trustWeekly:null;
-  const capitalSafe=!valid(r.inventoryChangePct)||Math.abs(r.inventoryChangePct)<=0.5;
+  const capitalSafe=valid(r.inventoryChangePct)&&Math.abs(r.inventoryChangePct)<=0.5;
   const common=valid(r.delta)&&r.delta>0&&valid(r.retail)&&r.retail<0;
   return {r,flow,common,positive:common&&capitalSafe&&valid(flow)&&flow>0};
 }
