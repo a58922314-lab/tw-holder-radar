@@ -24,12 +24,13 @@
 <div class="controls">
 <label>市場<select class="control" id="market"><option value="all">上市＋上櫃</option><option value="上市">上市</option><option value="上櫃">上櫃</option></select></label>
 <label>距樞紐價<select class="control" id="distance"><option value="all">1%～3%</option><option value="near">1%～2%</option><option value="far">2%～3%</option></select></label>
+<label>技術等級<select class="control" id="pattern"><option value="all">全部縮量候選</option><option value="strict">嚴格三段收縮</option><option value="watch">縮量近樞紐</option></select></label>
 <label>籌碼交叉<select class="control" id="holder"><option value="all">不限籌碼</option><option value="big">大戶週增加</option><option value="both">大戶增＋散戶減</option><option value="strong">大戶增＋散戶減＋法人買</option></select></label>
 <label>搜尋代號／名稱<input class="control" id="search" placeholder="例如 6257 矽格"></label>
 <button class="btn primary" id="reload">↻ 檢查已發布資料</button>
 <button class="btn" id="export">↓ CSV 匯出</button>
 </div>
-<p class="note" id="filterNote">技術條件使用 3×25 交易日固定區間近似 VCP；目前不是波段轉折點偵測。股價必須仍低於最近 25 日高點樞紐。量縮參考突破前 10 日／50 日均量，並以當日 500 張作流動性門檻。</p>
+<p class="note" id="filterNote">技術條件以 3×25 日固定區間近似整理形態（不是完整波段 VCP）。一般觀察：末段振幅 ≤12%、量縮比 10/50 日均量 &lt;0.9、距樞紐 1%～3%；嚴格三段版：振幅逐段縮小、末段 ≤10%、量縮比 &lt;0.7。當日成交量 ≥500 張。</p>
 <div class="tablearea"><table>
 <thead><tr><th>股票</th><th>最新收盤<br><span class="small">技術行情日期</span></th><th>樞紐價</th><th>距突破</th><th>三段收縮</th><th>量縮比<br><span class="small">10日/50日</span></th><th>大戶週Δ<br><span class="small">pp</span></th><th>散戶週Δ<br><span class="small">pp</span></th><th>法人合計週Δ<br><span class="small">張</span></th><th>評級／籌碼</th></tr></thead>
 <tbody id="results"><tr><td colspan="10" class="empty">載入中…</td></tr></tbody></table></div>
@@ -58,10 +59,12 @@ function holderDetails(c){
 }
 function visible(){
  const q=$('search').value.trim().toLowerCase(), market=$('market').value,
-       dist=$('distance').value, holder=$('holder').value;
+       dist=$('distance').value, holder=$('holder').value, pattern=$('pattern').value;
  filtered=candidates.filter(c=>{
    const h=holderDetails(c);
    if(market!=='all'&&c.market!==market)return false;
+   if(pattern==='strict'&&!c.strict)return false;
+   if(pattern==='watch'&&c.strict)return false;
    if(dist==='near'&&c.distancePct>2)return false;
    if(dist==='far'&&c.distancePct<=2)return false;
    if(q&&!String(c.code).includes(q)&&!String(c.name).toLowerCase().includes(q))return false;
@@ -85,7 +88,7 @@ function render(){
      '<td class="'+(r.delta>0?'good':'bad')+'">'+(valid(r.delta)?num(r.delta)+' pp':'待補')+'</td>'+
      '<td class="'+(r.retail<0?'good':'bad')+'">'+(valid(r.retail)?num(r.retail)+' pp':'待補')+'</td>'+
      '<td class="'+(flow>0?'good':'bad')+'">'+(valid(flow)?Math.round(flow).toLocaleString('zh-TW'):'待補')+'</td>'+
-     '<td><span class="tag">'+esc(c.grade)+'</span> <span class="tag '+(positive?'cool':'')+'">'+tier+'</span>'+(capitalReview?'<div class="small bad">集保庫存異動待核對</div>':'')+'</td></tr>';
+     '<td><span class="tag">'+esc(c.grade)+'</span><div class="small">'+esc(c.trendGrade||'初步趨勢')+'</div> <span class="tag '+(positive?'cool':'')+'">'+tier+'</span>'+(capitalReview?'<div class="small bad">集保庫存異動待核對</div>':'')+'</td></tr>';
  }).join('');
  $('results').innerHTML=rows||'<tr><td colspan="10" class="empty"><strong>目前沒有符合所選條件的候選</strong><div>可能是行情歷史尚未累積完整，或篩選條件較嚴格；可試試「不限籌碼」。</div></td></tr>';
  $('shown').textContent='符合篩選：'+filtered.length+' 檔；最近一筆週籌碼日期：'+(window.holderDate||'待補')+'。所有結果皆為收盤後資料，不是即時報價。';
@@ -115,11 +118,11 @@ async function load(){
    const insufficient=(report.eligibleStocks||0)===0;
    $('notice').innerHTML=insufficient?
      '<strong>歷史行情正在累積：</strong>目前尚無股票達到至少 76 根有效日 K 的門檻，不能判定 VCP。已儲存 '+esc(report.storedSessions||0)+' 個交易日。資料最後產製：'+esc(created)+'。':
-     '<strong>已讀取官方盤後掃描：</strong>資料產製：'+esc(created)+'；符合技術條件 '+candidates.length+' 檔。'+(report.warnings?.length?' 部分資料源仍有缺漏，請查看 GitHub Actions。':'');
+     '<strong>已讀取官方盤後掃描：</strong>資料產製：'+esc(created)+'；縮量近樞紐 '+candidates.length+' 檔，其中嚴格三段收縮 '+(report.strictCandidateCount??candidates.filter(x=>x.strict).length)+' 檔。'+(report.warnings?.length?' 部分資料源仍有缺漏，請查看 GitHub Actions。':'');
    visible();
  }catch(e){$('notice').innerHTML='<strong>尚無可驗證 VCP 結果：</strong>'+esc(e.message)+'。頁面不會顯示假資料。';$('results').innerHTML='<tr><td class="empty" colspan="10">尚未建立有效掃描，請檢查 GitHub Actions 的 Weekly TDCC holding updates 執行狀態。</td></tr>';}
 }
-for(const id of ['search','market','distance','holder'])$(id).addEventListener(id==='search'?'input':'change',visible);
+for(const id of ['search','market','distance','holder','pattern'])$(id).addEventListener(id==='search'?'input':'change',visible);
 $('reload').addEventListener('click',load);
 $('export').addEventListener('click',()=>{
  const headers=['date','code','name','market','close','pivot','distancePct','dryRatio','depth1','depth2','depth3','bigHolderDeltaPP','retailDeltaPP','institutionNetLots'];
