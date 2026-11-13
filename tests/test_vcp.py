@@ -45,7 +45,9 @@ class VCPTests(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertGreaterEqual(result["distancePct"], 1)
         self.assertLessEqual(result["distancePct"], 3)
-        self.assertEqual(result["grade"], "初步觀察")
+        self.assertEqual(result["grade"], "嚴格三段收縮")
+        self.assertTrue(result["strict"])
+        self.assertEqual(result["trendGrade"], "初步趨勢")
 
     def test_history_date_is_checked_by_source(self):
         source = [{"Code": "2001", "Date": "1151111", "OpeningPrice": 10,
