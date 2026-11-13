@@ -4,6 +4,10 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'vcp-radar.html'
+      - 'scripts/vcp_daily.py'
+      - 'tests/test_vcp.py'
+      - 'data/vcp_signals.json'
       - 'rules/d1-screening.js'
       - 'rules/a1-screening.js'
       - 'tests/a1-screening.test.cjs'
@@ -43,6 +47,7 @@ jobs:
         run: |
           python -c 'import pathlib,re; x=pathlib.Path("index.html").read_text(); m=re.search("<script>(.*?)</script>",x,re.S); assert m, "Missing inline dashboard script"; pathlib.Path("/tmp/radar.js").write_text(m.group(1))'
           node --check /tmp/radar.js
+          python -m unittest tests.test_vcp -v
           node --check rules/d1-screening.js
           node --test tests/d1-screening.test.cjs
           node --check rules/a1-screening.js
@@ -56,6 +61,7 @@ jobs:
         run: |
           mkdir -p _site/data
           cp index.html _site/index.html
+          cp vcp-radar.html _site/vcp-radar.html
           mkdir -p _site/rules
           cp rules/d1-screening.js _site/rules/d1-screening.js
           cp rules/a1-screening.js _site/rules/a1-screening.js
@@ -68,6 +74,11 @@ jobs:
             cp data/auto_snapshots.json _site/data/auto_snapshots.json
           else
             echo '{"snapshots":[]}' > _site/data/auto_snapshots.json
+          fi
+          if [ -f data/vcp_signals.json ]; then
+            cp data/vcp_signals.json _site/data/vcp_signals.json
+          else
+            echo '{"candidateCount":0,"storedSessions":0,"eligibleStocks":0,"marketAsOf":{},"candidates":[]}' > _site/data/vcp_signals.json
           fi
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
