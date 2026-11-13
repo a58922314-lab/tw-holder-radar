@@ -6,6 +6,7 @@ weekly holder snapshots are joined at presentation time, never fabricated.
 import json
 import os
 import re
+import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -20,7 +21,7 @@ MAX_SESSIONS = 260
 MIN_BARS = 76
 SEGMENT = 25
 # Up to 22 missed weekdays per market per refresh: resume incrementally on next run.
-BACKFILL_PER_RUN = max(0, min(80, int(os.getenv("VCP_BACKFILL_PER_RUN", "22"))))
+BACKFILL_PER_RUN = max(0, min(80, int(os.getenv("VCP_BACKFILL_PER_RUN", "65"))))
 
 
 def _number(s):
@@ -268,6 +269,7 @@ def collect(roster, download, read, write, batch=BACKFILL_PER_RUN):
                     continue
                 misses += 1
                 try:
+                    time.sleep(0.35)  # Be considerate of exchange history endpoints.
                     payload = json.loads(download(history_url(market, day)).decode("utf-8-sig"))
                     found = parse_history(payload, day)
                     matched = {c: r for c, r in found.items()
