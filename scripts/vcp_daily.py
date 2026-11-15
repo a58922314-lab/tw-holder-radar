@@ -4,6 +4,7 @@ Only completed daily bars are used. All VCP rows require actual historical OHLCV
 weekly holder snapshots are joined at presentation time, never fabricated.
 """
 import json
+import math
 import os
 import re
 import time
@@ -142,35 +143,46 @@ def _mean(vals):
     return sum(vals) / len(vals)
 
 
-def scan_one(bars):
+def evaluate_one(bars):
     """A 3x25-session fixed-window proxy, NOT subjective swing-based VCP.
 
     Bars are chronological [date, open, high, low, close, volume_lots].
     Excludes today's price and volume from pivot / volume dry-up reference.
-    Returns None unless all conditions (including distance 1..3%) pass.
+    Keeps failed and unavailable checks so a holder watchlist never loses rows.
     """
+    result = {"date": None, "close": None, "pivot": None, "distancePct": None,
+              "depthsPct": [], "dryRatio": None, "volumeLots": None,
+              "bars": len(bars), "strict": False, "candidate": False,
+              "status": "insufficient", "grade": "資料不足", "checks": {},
+              "reasons": [], "dataIssues": []}
+    if any(len(b) != 6 or any(not isinstance(x, (int, float)) or not math.isfinite(x)
+                              for x in b[1:]) or min(b[1:5]) <= 0 or b[5] < 0
+           or b[2] < max(b[1], b[3], b[4]) or b[3] > min(b[1], b[4]) for b in bars):
+        result["dataIssues"] = ["日 K 價量欄位無效，無法驗證"]
+        return result
+    if bars:
+        result.update(date=bars[-1][0], close=round(bars[-1][4], 2),
+                      volumeLots=round(bars[-1][5], 1))
     if len(bars) < MIN_BARS:
-        return None
+        result["dataIssues"] = [f"有效日 K {len(bars)} 根，至少需要 {MIN_BARS} 根"]
+        return result
     today = bars[-1]
     prev = bars[:-1]
     day, _, _, _, close, volume = today
-    if close <= 0 or volume < 500:
-        return None
+    checks = result["checks"]
+    checks["liquidity"] = volume >= 500
     ma50 = _mean([x[4] for x in bars[-50:]])
-    if close <= ma50:
-        return None
+    checks["trend"] = close > ma50
     # A more rigorous trend template is required once 220+ bars exist.
     if len(bars) >= 220:
         ma150 = _mean([x[4] for x in bars[-150:]])
         ma200 = _mean([x[4] for x in bars[-200:]])
         old200 = _mean([x[4] for x in bars[-220:-20]])
-        if not (ma50 > ma150 > ma200 and ma200 > old200):
-            return None
+        checks["trend"] = checks["trend"] and ma50 > ma150 > ma200 and ma200 > old200
     if len(bars) >= 250:
         low52 = min(x[3] for x in bars[-250:])
         high52 = max(x[2] for x in bars[-250:])
-        if close < low52 * 1.3 or close < high52 * 0.75:
-            return None
+        checks["trend"] = checks["trend"] and close >= low52 * 1.3 and close >= high52 * 0.75
 
     segments = [prev[-75:-50], prev[-50:-25], prev[-25:]]
     depths = []
@@ -181,33 +193,51 @@ def scan_one(bars):
     d1, d2, d3 = depths
     v50 = _mean([x[5] for x in prev[-50:]])
     v10 = _mean([x[5] for x in prev[-10:]])
-    if v50 <= 0:
-        return None
-    dry = v10 / v50
+    dry = v10 / v50 if v50 > 0 else None
     # Separate a strict three-stage pattern from a looser but still contracting
     # watchlist. Never describe the looser tier as a confirmed VCP.
-    strict = d1 >= 10 and d1 > d2 > d3 and d3 <= 10 and dry < 0.7
-    watch = d3 <= 12 and dry < 0.9
-    if not (strict or watch):
-        return None
+    checks["contraction"] = d3 <= 12
+    checks["dry"] = dry < 0.9 if dry is not None else None
+    checks["strictContraction"] = d1 >= 10 and d1 > d2 > d3 and d3 <= 10
+    checks["strictDry"] = dry < 0.7 if dry is not None else None
+    strict = checks["strictContraction"] and checks["strictDry"] is True
     pivot = max(x[2] for x in segments[-1])
     distance = (pivot / close - 1) * 100
-    if not (1 <= distance <= 3 and close < pivot):
-        return None
-    return {
+    checks["distance"] = 1 <= distance <= 3 and close < pivot
+    candidate = all(checks[k] is True for k in ("liquidity", "trend", "contraction", "dry", "distance"))
+    labels = {"liquidity": "當日成交量未達 500 張", "trend": "目前歷史長度適用的趨勢條件未達標",
+              "contraction": "末段振幅超過 12%", "dry": "10／50 日均量比未低於 0.9",
+              "distance": "距樞紐不在 1%～3% 待突破區間"}
+    result["reasons"] = [text for key, text in labels.items() if checks[key] is False]
+    if dry is None:
+        result["dataIssues"].append("前 50 日均量為零，無法計算量縮比")
+    result.update({
         "date": day, "close": round(close, 2), "pivot": round(pivot, 2),
         "distancePct": round(distance, 2),
         "depthsPct": [round(x, 2) for x in depths],
-        "dryRatio": round(dry, 3),
+        "dryRatio": round(dry, 3) if dry is not None else None,
         "volumeLots": round(volume, 1),
         "bars": len(bars),
-        "grade": "嚴格三段收縮" if strict else "縮量近樞紐",
+        "grade": ("嚴格三段收縮" if strict else "縮量近樞紐") if candidate else "尚未達標",
         "strict": strict,
+        "candidate": candidate,
+        "status": "insufficient" if result["dataIssues"] else ("passed" if candidate else "not_met"),
         "trendGrade": "完整趨勢" if len(bars) >= 250 else ("均線趨勢" if len(bars) >= 220 else "初步趨勢"),
-    }
+        "trendNote": "" if len(bars) >= 250 else ("52 週位置需 250 根日 K" if len(bars) >= 220
+                       else "完整均線／52 週條件需 220／250 根日 K"),
+    })
+    if result["dataIssues"]:
+        result["grade"] = "資料不足"
+    return result
 
 
-def scan_all(days, roster):
+def scan_one(bars):
+    """Compatibility API: the independent VCP radar still returns only candidates."""
+    result = evaluate_one(bars)
+    return result if result["candidate"] else None
+
+
+def evaluate_all(days, roster, market_as_of=None):
     by_code = defaultdict(list)
     dates = sorted(days)[-MAX_SESSIONS:]
     for day in dates:
@@ -215,19 +245,45 @@ def scan_all(days, roster):
             if code in roster:
                 by_code[code].append([day] + row)
     results = []
+    evaluations = []
     covered = 0
-    for code, bars in by_code.items():
-        if len(bars) < MIN_BARS:
-            continue
-        covered += 1
-        item = scan_one(bars)
-        if item:
-            result = {"code": code, "name": roster[code]["name"],
-                      "market": roster[code]["market"]}
-            result.update(item)
+    for code, stock in roster.items():
+        bars = by_code[code]
+        covered += len(bars) >= MIN_BARS
+        result = {"code": code, "name": stock["name"], "market": stock["market"],
+                  **evaluate_one(bars)}
+        if market_as_of is not None:
+            expected = market_as_of.get(stock["market"])
+            if not expected or result["date"] != expected:
+                result["dataIssues"].append("缺少市場最新行情：" + (expected or "市場日期待補"))
+                result.update(candidate=False, status="insufficient", grade="資料不足")
+        evaluations.append(result)
+        if result["candidate"]:
             results.append(result)
     results.sort(key=lambda x: (x["distancePct"], x["dryRatio"], x["code"]))
-    return covered, results
+    return covered, results, evaluations
+
+
+def scan_all(days, roster):
+    covered, candidates, _ = evaluate_all(days, roster)
+    return covered, candidates
+
+
+def build_report(days, roster, warnings=()):
+    by_market_date = {}
+    for market in ("上市", "上櫃"):
+        ds = [d for d in days if sum(1 for code in days[d]
+              if code in roster and roster[code].get("market") == market) >= 200]
+        by_market_date[market] = max(ds, default=None)
+    covered, candidates, evaluations = evaluate_all(days, roster, by_market_date)
+    return {
+        "schemaVersion": 2, "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "marketAsOf": by_market_date, "storedSessions": len(days),
+        "eligibleStocks": covered, "candidateCount": len(candidates),
+        "strictCandidateCount": sum(1 for c in candidates if c["strict"]),
+        "model": "近樞紐縮量觀察：末段振幅≤12%、量縮比<0.9；嚴格三段版再要求逐段收縮且量縮比<0.7；不是完整波段 VCP",
+        "warnings": list(warnings)[:25], "candidates": candidates, "evaluations": evaluations,
+    }
 
 
 def collect(roster, download, read, write, batch=BACKFILL_PER_RUN):
@@ -295,22 +351,29 @@ def collect(roster, download, read, write, batch=BACKFILL_PER_RUN):
         # Avoid accidentally retaining out-of-order / impossible future sessions.
         days = {k: v for k, v in days.items() if k <= newest}
     write("vcp_daily.json", {"days": days, "skipped": skipped})
-    covered, candidates = scan_all(days, roster)
-    # Report each market's actual last verified quote day.
-    by_market_date = {}
-    for market in ("上市", "上櫃"):
-        ds = [d for d in days if sum(1 for code in days[d]
-              if code in roster and roster[code].get("market") == market) >= 200]
-        by_market_date[market] = max(ds, default=None)
-    # Drop stale symbols if one market is behind, and do not mix different dates.
-    candidates = [r for r in candidates if r["date"] == by_market_date.get(r["market"])]
-    result = {
-        "generatedAt": datetime.now(timezone.utc).isoformat(),
-        "marketAsOf": by_market_date, "storedSessions": len(days),
-        "eligibleStocks": covered, "candidateCount": len(candidates),
-        "strictCandidateCount": sum(1 for c in candidates if c["strict"]),
-        "model": "近樞紐縮量觀察：末段振幅≤12%、量縮比<0.9；嚴格三段版再要求逐段收縮且量縮比<0.7；不是完整波段 VCP",
-        "warnings": warnings[:25], "candidates": candidates
-    }
+    result = build_report(days, roster, warnings)
     write("vcp_signals.json", result)
     return result
+
+
+def rebuild_saved_report(data_dir=DATA):
+    """Re-evaluate verified saved candles at deploy time without fetching quotes."""
+    def read(name):
+        return json.loads((data_dir / name).read_text(encoding="utf-8"))
+    old_path = data_dir / "vcp_signals.json"
+    previous = read("vcp_signals.json") if old_path.exists() else {}
+    report = build_report(read("vcp_daily.json")["days"], read("universe.json"),
+                          previous.get("warnings", []))
+    old_path.write_text(json.dumps(report, ensure_ascii=False, separators=(",", ":")) + "\n",
+                        encoding="utf-8")
+    return report
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--rebuild", action="store_true", required=True,
+                        help="Rebuild diagnostics from saved official candles; no network requests")
+    parser.parse_args()
+    rebuilt = rebuild_saved_report()
+    print(f"VCP: {len(rebuilt['evaluations'])} diagnostics; {rebuilt['candidateCount']} candidates")
