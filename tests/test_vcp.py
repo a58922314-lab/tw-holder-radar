@@ -1,9 +1,94 @@
 """Tests for VCP official OHLCV collection and pre-breakout screening."""
 import unittest
+import json
+import tempfile
+from pathlib import Path
 from scripts import vcp_daily
 
 
 class VCPTests(unittest.TestCase):
+    @staticmethod
+    def pattern_bars():
+        return ([[f"{i:03d}", 90, 100, 80, 94, 1100] for i in range(25)]
+                + [[f"{i:03d}", 93, 100, 87, 96, 950] for i in range(25, 50)]
+                + [[f"{i:03d}", 97, 100, 95, 98, 300] for i in range(50, 75)]
+                + [["075", 98, 99, 96, 98, 650]])
+
+    def test_diagnostics_keep_failed_conditions_and_real_metrics(self):
+        bars = self.pattern_bars()
+        bars[-1] = ["075", 90, 99, 89, 90, 100]
+        result = vcp_daily.evaluate_one(bars)
+        self.assertIsNone(vcp_daily.scan_one(bars))
+        self.assertEqual(result["status"], "not_met")
+        self.assertEqual(result["pivot"], 100)
+        self.assertAlmostEqual(result["distancePct"], 11.11)
+        self.assertGreater(result["dryRatio"], 0)
+        for key in ("distance", "liquidity", "trend"):
+            self.assertFalse(result["checks"][key])
+        self.assertEqual(len(result["reasons"]), 3)
+        self.assertTrue(result["checks"]["strictContraction"])
+
+    def test_partial_missing_and_invalid_bars_are_not_failures_or_zero_prices(self):
+        for bars in ([], self.pattern_bars()[:75]):
+            result = vcp_daily.evaluate_one(bars)
+            self.assertEqual(result["status"], "insufficient")
+            self.assertIsNone(result["distancePct"])
+            self.assertIsNone(result["dryRatio"])
+            self.assertTrue(result["dataIssues"])
+        for bad in (float('nan'), None, -1):
+            bars = self.pattern_bars()
+            bars[-1][4] = bad
+            self.assertEqual(vcp_daily.evaluate_one(bars)["status"], "insufficient")
+
+    def test_zero_reference_volume_is_unavailable(self):
+        bars = self.pattern_bars()
+        for bar in bars[:-1]:
+            bar[5] = 0
+        result = vcp_daily.evaluate_one(bars)
+        self.assertIsNone(result["dryRatio"])
+        self.assertIsNone(result["checks"]["dry"])
+        self.assertEqual(result["status"], "insufficient")
+
+    def test_all_roster_stocks_survive_even_with_zero_candidates_and_stale_quotes(self):
+        bars = self.pattern_bars()
+        roster = {c: {"name": c, "market": "上市"} for c in ("2001", "2002", "2003")}
+        days = {b[0]: {"2001": b[1:]} for b in bars}
+        days[bars[-1][0]]["2002"] = bars[-1][1:]
+        covered, candidates, rows = vcp_daily.evaluate_all(days, roster, {"上市": "076"})
+        self.assertEqual(covered, 1)
+        self.assertEqual(candidates, [])
+        self.assertEqual(len(rows), 3)
+        self.assertTrue(all(r["status"] == "insufficient" for r in rows))
+        self.assertEqual(rows[0]["date"], "075")
+        self.assertEqual(rows[0]["pivot"], 100)
+        self.assertIsNone(rows[2]["close"])
+
+    def test_diagnostics_and_original_candidate_api_agree(self):
+        bars = self.pattern_bars()
+        for close, volume in ((98, 650), (90, 650), (101, 650), (98, 499)):
+            bars[-1] = ["075", close, close + 1, close - 1, close, volume]
+            diagnostic = vcp_daily.evaluate_one(bars)
+            candidate = vcp_daily.scan_one(bars)
+            self.assertEqual(diagnostic["candidate"], candidate is not None)
+        self.assertEqual(vcp_daily.evaluate_one(self.pattern_bars())["status"], "passed")
+
+    def test_deploy_rebuild_uses_saved_dates_and_keeps_failed_rows(self):
+        with tempfile.TemporaryDirectory() as temp:
+            data = Path(temp)
+            roster = {str(code): {"name": str(code), "market": "上市"} for code in range(2000, 2200)}
+            days = {bar[0]: {code: bar[1:] for code in roster} for bar in self.pattern_bars()}
+            payloads = {"vcp_daily.json": {"days": days}, "universe.json": roster,
+                        "vcp_signals.json": {"candidates": [], "warnings": ["source coverage warning"]}}
+            for filename, payload in payloads.items():
+                (data / filename).write_text(json.dumps(payload), encoding="utf-8")
+            report = vcp_daily.rebuild_saved_report(data)
+            self.assertEqual(report["marketAsOf"]["上市"], "075")
+            self.assertEqual(report["warnings"], ["source coverage warning"])
+            self.assertEqual(len(report["evaluations"]), 200)
+            self.assertEqual(report["candidateCount"], 200)
+            saved = json.loads((data / "vcp_signals.json").read_text(encoding="utf-8"))
+            self.assertEqual(saved, report)
+
     def test_parse_twse_latest_and_volume_lots(self):
         rows = [
             {"Date": "1151112", "Code": str(i), "OpeningPrice": "90.0",
