@@ -190,6 +190,8 @@ function renderSignals(){
     counts+
     '<div class="panel pad" style="margin-top:18px">'+
     '<div class="pill-row">'+buttons+'</div>'+
+    '<p><a class="button gold" href="./vcp-radar.html?mode=d1'+(state.signal==='D1+'?'&amp;tier=D1%2B':'')+'">→ D1／D1+ 一鍵帶入 VCP 雷達</a></p>'+
+    '<p class="hint">使用最新官方週集保快照重新篩選 D1／D1+，保留 VCP 尚未達標或資料不足的股票；不沿用目前歷史週別、範例或自行匯入資料。'+(state.signal==='D1+'?'目前選擇 D1+，跳轉後只顯示最新官方 D1+。':'')+'</p>'+
     '<p class="hint">採<strong>最高分級</strong>：D1+ ＞ D1 ＞ C2+ ＞ C1。D1+ 需要前週融資餘額>0，才能正確計算融資減少百分比。其他分級直接使用原始策略規則，不以10pp為額外排除條件；持股變化絕對值>10pp會標記「股本異動待核對」。</p>'+
     '<p class="hint">完整週融資與價格覆蓋：'+coverage+' / '+all.length+
     ' 檔；可計算融資減少百分比：'+marginCoverage+' 檔。上市／上櫃來源不足時，股票不會被誤算為 D1 或 C2+。</p>'+
