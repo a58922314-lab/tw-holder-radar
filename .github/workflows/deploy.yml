@@ -9,6 +9,8 @@ on:
       - 'tests/test_vcp.py'
       - 'data/vcp_signals.json'
       - 'rules/d1-screening.js'
+      - 'rules/vcp-watchlist.js'
+      - 'tests/vcp-watchlist.test.cjs'
       - 'rules/a1-screening.js'
       - 'tests/a1-screening.test.cjs'
       - 'tests/industry-flow.test.cjs'
@@ -43,6 +45,8 @@ jobs:
         with:
           # A queued deploy must retain data committed by the preceding refresh.
           ref: main
+      - name: Rebuild VCP diagnostics from saved official candles
+        run: python scripts/vcp_daily.py --rebuild
       - name: Validate dashboard script syntax
         run: |
           python -c 'import pathlib,re; x=pathlib.Path("index.html").read_text(); m=re.search("<script>(.*?)</script>",x,re.S); assert m, "Missing inline dashboard script"; pathlib.Path("/tmp/radar.js").write_text(m.group(1))'
@@ -52,6 +56,8 @@ jobs:
           python -m unittest discover -s tests -p 'test_vcp.py' -v
           node --check rules/d1-screening.js
           node --test tests/d1-screening.test.cjs
+          node --check rules/vcp-watchlist.js
+          node --test tests/vcp-watchlist.test.cjs
           node --check rules/a1-screening.js
           node --test tests/a1-screening.test.cjs
           node --test tests/industry-flow.test.cjs
@@ -66,6 +72,7 @@ jobs:
           cp vcp-radar.html _site/vcp-radar.html
           mkdir -p _site/rules
           cp rules/d1-screening.js _site/rules/d1-screening.js
+          cp rules/vcp-watchlist.js _site/rules/vcp-watchlist.js
           cp rules/a1-screening.js _site/rules/a1-screening.js
           cp strategy-validation.html _site/strategy-validation.html
           cp strategy-validation.js _site/strategy-validation.js
