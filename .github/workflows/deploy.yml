@@ -5,6 +5,8 @@ on:
     paths:
       - 'index.html'
       - 'vcp-radar.html'
+      - 'rules/vcp-integration.js'
+      - 'tests/vcp-integration.test.cjs'
       - 'scripts/vcp_daily.py'
       - 'tests/test_vcp.py'
       - 'data/vcp_signals.json'
@@ -50,6 +52,8 @@ jobs:
           python -c 'import pathlib,re; x=pathlib.Path("vcp-radar.html").read_text(); m=re.search("<script>(.*?)</script>",x,re.S); assert m, "Missing VCP page script"; pathlib.Path("/tmp/vcp-radar.js").write_text(m.group(1))'
           node --check /tmp/vcp-radar.js
           python -m unittest discover -s tests -p 'test_vcp.py' -v
+          node --check rules/vcp-integration.js
+          node --test tests/vcp-integration.test.cjs
           node --check rules/d1-screening.js
           node --test tests/d1-screening.test.cjs
           node --check rules/a1-screening.js
@@ -66,6 +70,7 @@ jobs:
           cp vcp-radar.html _site/vcp-radar.html
           mkdir -p _site/rules
           cp rules/d1-screening.js _site/rules/d1-screening.js
+          cp rules/vcp-integration.js _site/rules/vcp-integration.js
           cp rules/a1-screening.js _site/rules/a1-screening.js
           cp strategy-validation.html _site/strategy-validation.html
           cp strategy-validation.js _site/strategy-validation.js
