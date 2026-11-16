@@ -61,6 +61,65 @@ let officialSnapshots=[], officialLatest=null, selectedWeeks=[];
 let loadFailed=false;
 $("source").value=["d1","d1plus","vcp"].includes(queryMode)?queryMode:"vcp";
 
+
+function weeksForD1(){
+ return window.D1History?.summarize(officialSnapshots,window.D1Screening,5)||[];
+}
+function setWeekOptions(){
+ selectedWeeks=weeksForD1();
+ const previous=$("week").value;
+ $("week").innerHTML=selectedWeeks.map(w=>'<option value="'+esc(w.date)+'">'+
+    esc(w.date)+'｜D1+ '+w.d1plus.length+' ／D1 '+w.d1.length+'</option>').join("");
+ if(selectedWeeks.some(w=>w.date===previous))$("week").value=previous;
+ else if(queryWeek&&selectedWeeks.some(w=>w.date===queryWeek))$("week").value=queryWeek;
+ else if(selectedWeeks.length)$("week").value=selectedWeeks[0].date;
+ renderWeekArchive();
+}
+function renderWeekArchive(){
+ if(!selectedWeeks.length){
+   $("historicalWeekNames").innerHTML='<p class="note">目前尚無正式官方選股週別。</p>';
+   return;
+ }
+ const names=(arr,strong)=>arr.length?arr.map(r=>
+  '<span class="tag '+(strong?"cool":"")+'" style="margin:2px 3px">'+
+  esc(r.code)+' '+esc(r.name)+'</span>').join(""):
+  '<span class="small">本期無入選；請注意資料完整性</span>';
+ $("historicalWeekNames").innerHTML=selectedWeeks.map((w,i)=>{
+   const items=[...w.d1plus,...w.d1],top=items.slice(0,4).map(r=>r.code+' '+r.name).join("、");
+   return '<details class="panel" style="margin:8px 0;padding:11px 13px" '+
+    (w.date===$("week").value?"open":"")+'>'+
+    '<summary style="cursor:pointer"><strong style="color:var(--gold)">'+esc(w.date)+'</strong>'+
+    '<small class="small"> '+(i===0?"最新期":"前"+i+"期")+'</small> '+
+    '<span class="tag cool">D1+ '+w.d1plus.length+'</span> <span class="tag">D1 '+w.d1.length+'</span>'+
+    '<div class="small">對比 '+esc(w.compareDate||"資料待補")+' · 可判定 '+w.covered+'/'+w.total+' 檔'+
+    (top?' · '+esc(top)+(items.length>4?' 等':''):' · '+(w.covered===0?'待補資料':'無入選'))+'</div></summary>'+
+    '<div class="note"><strong>D1+ 名單</strong><div>'+names(w.d1plus,true)+'</div></div>'+
+    '<div class="note"><strong>D1 名單</strong><div>'+names(w.d1,false)+'</div></div>'+
+    '<button type="button" class="btn '+(w.date===$("week").value?"primary":"")+
+    '" data-vcp-week="'+esc(w.date)+'">帶入本期選股，查看目前 VCP</button></details>';
+ }).join("");
+}
+function updateUrl(){
+ const u=new URL(window.location.href);
+ u.searchParams.set("mode",$("source").value);
+ if($("source").value!=="vcp"&&$("week").value)u.searchParams.set("week",$("week").value);
+ else u.searchParams.delete("week");
+ window.history.replaceState(null,"",u);
+}
+function syncWeekContext(){
+ const active=$("source").value!=="vcp";
+ $("weekFilter").style.display=active?"grid":"none";
+ $("weeklyArchive").style.display=active?"block":"none";
+ official=(active?officialSnapshots.find(s=>s.date===$("week").value):officialLatest)||null;
+ latest={};
+ if(official)for(const r of official.records)latest[String(r.code)]=r;
+ const past=active&&official&&officialLatest&&official.date!==officialLatest.date;
+ $("ageWarning").style.display=past?"block":"none";
+ if(past)$("ageWarning").textContent="歷史選股週別 "+official.date+
+   " 的籌碼資料，搭配的是現在已發布的 VCP 技術行情。兩者日期不同；這是舊名單現況追蹤，並非當週 VCP 回測。";
+ recompute();
+}
+
 function holderDetails(c) {
  const r=latest[String(c.code)]||{};
  const done=valid(r.instExpected)&&r.instExpected>0&&r.instCoverage===r.instExpected;
@@ -156,7 +215,7 @@ async function load() {
       '<div style="font-size:13px">上櫃 '+esc(report.marketAsOf?.["上櫃"]||"待補")+"</div>";
    const created=report.generatedAt?new Date(report.generatedAt).toLocaleString("zh-TW",{timeZone:"Asia/Taipei",hour12:false}):"未知";
    $("notice").innerHTML="<strong>已讀取官方資料：</strong>VCP "+esc(created)+
-     "；最新 D1 週別 "+esc(official?.date||"尚無正式資料")+
+     "；最新 D1 週別 "+esc(officialLatest?.date||"尚無正式資料")+
      "；原始 VCP 候選 "+(report.candidateCount??report.candidates.length)+
      " 檔。"+(report.assessments?"已載入逐檔技術評估。":"逐檔技術評估尚待新一輪更新；D1 不會因此被隱藏。");
    setWeekOptions();
@@ -173,6 +232,17 @@ for(const id of ["search","market","distance","status","holder"]){
 $("source").addEventListener("change",()=>{
  $("status").value="all";$("distance").value="all";$("holder").value="all";
  syncWeekContext();updateUrl();
+});
+$("week").addEventListener("change",()=>{
+ syncWeekContext();renderWeekArchive();updateUrl();
+});
+$("historicalWeekNames").addEventListener("click",e=>{
+ const button=e.target.closest("[data-vcp-week]");
+ if(!button)return;
+ $("week").value=button.dataset.vcpWeek;
+ $("source").value="d1";
+ syncWeekContext();renderWeekArchive();updateUrl();
+ $("results").scrollIntoView({behavior:"smooth",block:"start"});
 });
 $("reload").addEventListener("click",load);
 $("export").addEventListener("click",()=>{
