@@ -85,6 +85,8 @@ jobs:
           python -m unittest discover -s tests -p 'test_vcp.py' -v
           node --check rules/d1-screening.js
           node --test tests/d1-screening.test.cjs
+          node --check rules/vcp-watchlist.js
+          node --test tests/vcp-watchlist.test.cjs
           node --check rules/a1-screening.js
           node --test tests/a1-screening.test.cjs
           node --test tests/industry-flow.test.cjs
@@ -99,6 +101,7 @@ jobs:
           cp vcp-radar.html _site/vcp-radar.html
           mkdir -p _site/rules
           cp rules/d1-screening.js _site/rules/d1-screening.js
+          cp rules/vcp-watchlist.js _site/rules/vcp-watchlist.js
           cp rules/a1-screening.js _site/rules/a1-screening.js
           cp strategy-validation.html _site/strategy-validation.html
           cp strategy-validation.js _site/strategy-validation.js
