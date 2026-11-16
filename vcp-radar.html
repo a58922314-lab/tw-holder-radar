@@ -20,9 +20,11 @@
 <div class="stat"><label>行情日期</label><strong id="marketDates" style="font-size:14px">—</strong></div>
 </div>
 <div id="notice" class="warn loading">正在讀取已發布的 VCP 掃描結果…</div>
+<section class="panel" id="weeklyArchive" style="display:none"><h3 style="margin:0 0 9px">D1／D1+ 歷史選股｜最新＋前五期</h3><p class="note">以原本 D1 規則重算當週正式官方選股；展開後可查看股票名單，再追蹤這些股票現在的 VCP 條件。</p><div id="historicalWeekNames"></div><p id="ageWarning" class="warn" style="display:none"></p></section>
 <section class="panel">
 <div class="controls">
 <label>篩選來源<select class="control" id="source"><option value="vcp">VCP 縮量候選</option><option value="d1">D1＋D1+ 自動帶入</option><option value="d1plus">僅 D1+ 自動帶入</option></select></label>
+<label id="weekFilter" style="display:none">D1 選股週別<select class="control" id="week"></select></label>
 <label>市場<select class="control" id="market"><option value="all">上市＋上櫃</option><option value="上市">上市</option><option value="上櫃">上櫃</option></select></label>
 <label>距樞紐價<select class="control" id="distance"><option value="all" id="distanceDefault">1%～3%</option><option value="near">1%～2%</option><option value="far">2%～3%</option></select></label>
 <label>VCP 技術狀態<select class="control" id="status"><option value="all">全部技術狀態</option><option value="strict">嚴格三段收縮</option><option value="watch">縮量近樞紐</option><option value="failed">未符合 VCP</option><option value="missing">資料不足／行情落後</option></select></label>
@@ -46,13 +48,16 @@
 </main>
 <script src="./rules/d1-screening.js"></script>
 <script src="./rules/vcp-integration.js"></script>
+<script src="./rules/d1-history.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const valid=x=>typeof x==="number"&&Number.isFinite(x);
 const num=(x,d=2)=>valid(x)?x.toFixed(d):"—";
 const queryMode=new URLSearchParams(window.location.search).get("mode");
+const queryWeek=new URLSearchParams(window.location.search).get("week");
 let report=null, official=null, latest={}, rows=[], filtered=[];
+let officialSnapshots=[], officialLatest=null, selectedWeeks=[];
 let loadFailed=false;
 $("source").value=["d1","d1plus","vcp"].includes(queryMode)?queryMode:"vcp";
 
@@ -76,7 +81,7 @@ function recompute() {
    $("distanceDefault").textContent=d1?"不限距樞紐距離":"1%～3%";
    $("candidateCount").textContent=rows.length.toLocaleString("zh-TW");
    $("filterNote").innerHTML=d1
-     ? "D1／D1+ 依最新官方週籌碼自動選出；即使 VCP 未符合，仍保留在表中。<strong>「未符合」不等於買進警示</strong>。技術評估包含樞紐距離、三段收縮幅度、量縮比及未通過原因。"
+     ? "D1／D1+ 使用選定的官方歷史週別名單；VCP 技術狀態採用最新盤後行情，不是歷史回測。即使 VCP 未符合也仍保留。<strong>「未符合」不等於買進警示</strong>。"
      : "以最近 3×25 日固定區間近似 VCP。縮量近樞紐：末段振幅 ≤12%、10/50日量縮比 &lt;0.9、收盤低於樞紐 1%～3%；嚴格版額外要求三段逐次變淺、量縮比 &lt;0.7。";
    applyFilters();
  }catch(e){
@@ -138,12 +143,12 @@ async function load() {
    if(!v.ok)throw Error("VCP 技術結果無法取得（HTTP "+v.status+"）");
    report=await v.json();
    if(!Array.isArray(report.candidates))throw Error("VCP 技術結果格式錯誤");
-   official=null;latest={};
+   official=null;latest={};officialSnapshots=[];officialLatest=null;
    if(w.ok){
      const h=await w.json();
-     official=(h.snapshots||[]).filter(s=>s.type==="auto"&&Array.isArray(s.records)&&s.records.length>1000)
-       .sort((a,b)=>a.date.localeCompare(b.date)).at(-1)||null;
-     if(official)for(const r of official.records)latest[String(r.code)]=r;
+     officialSnapshots=(h.snapshots||[]).filter(s=>s.type==="auto"&&Array.isArray(s.records)&&s.records.length>1000)
+        .sort((a,b)=>a.date.localeCompare(b.date));
+      officialLatest=officialSnapshots.at(-1)||null;
    }
    $("sessionCount").textContent=report.storedSessions??"—";
    $("coveredCount").textContent=report.eligibleStocks??"—";
@@ -154,7 +159,8 @@ async function load() {
      "；最新 D1 週別 "+esc(official?.date||"尚無正式資料")+
      "；原始 VCP 候選 "+(report.candidateCount??report.candidates.length)+
      " 檔。"+(report.assessments?"已載入逐檔技術評估。":"逐檔技術評估尚待新一輪更新；D1 不會因此被隱藏。");
-   recompute();
+   setWeekOptions();
+   syncWeekContext();
  }catch(e) {
    loadFailed=true;
    $("notice").innerHTML="<strong>資料讀取未成功：</strong>"+esc(e.message)+"；未使用圖片範例或虛構日K。";
@@ -166,10 +172,7 @@ for(const id of ["search","market","distance","status","holder"]){
 }
 $("source").addEventListener("change",()=>{
  $("status").value="all";$("distance").value="all";$("holder").value="all";
- const uri=new URL(window.location.href);
- uri.searchParams.set("mode",$("source").value);
- window.history.replaceState(null,"",uri);
- recompute();
+ syncWeekContext();updateUrl();
 });
 $("reload").addEventListener("click",load);
 $("export").addEventListener("click",()=>{
