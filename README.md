@@ -88,3 +88,14 @@ A1 母池**只取該週集保 >400 張大戶週增 TOP50**，逐一檢查：
 - 官方指定日期歷史行情會逐次回補（每次兩市場各最多 65 個缺失的平日（可由環境變數調整））；新部署初期的 0 檔可能只是 K 線不足。`data/vcp_daily.json` 僅保存在倉庫，Pages 只部署輕量級結果 `data/vcp_signals.json`。
 - `scripts/vcp_daily.py` 實作與 `tests/test_vcp.py` 自動化測試。上市現價來源 TWSE STOCK_DAY_ALL、上櫃 TPEx daily_close_quotes，歷史行情使用 TWSE MI_INDEX 與 TPEx afterTrading/otc 並按來源欄名驗證。最新日資料可能延遲、歷史回補可能被官方限制；不補假資料。
 - 股價未還原除權息；固定三段並非真正波段 VCP；僅供預警觀察而非買進／回測績效。
+
+
+## D1／D1+ 自動帶入 VCP 技術雷達
+
+- 在「D1 / D1+ / C2+ / C1」頁面按 **D1／D1+ 自動帶入 VCP** 或 **僅 D1+ × VCP**，開啟 `vcp-radar.html?mode=d1`／`?mode=d1plus`。
+- 交叉名單以**最新正式官方** `auto_snapshots.json` 快照逐檔套用現有 `rules/d1-screening.js` 的 `qualify()`；與 D1 頁面使用**同一份規則**，不複製或放寬 D1 條件。不使用內建圖片快照或使用者匯入的舊 CSV 冒充當週訊號。
+- `data/vcp_signals.json` 新增 `assessments` 字典，依每檔股票代號提供日 K 筆數、行情日期、樞紐價、距離百分比、三段振幅、10／50 日量縮比、完整技術狀態及未達條件原因；**未通過 VCP 的 D1 股票一樣保留顯示**。
+- 每種 D1 技術狀態會分別標示「嚴格三段收縮」「縮量近樞紐」「未符合」「資料不足」及「行情落後」。資料不足不會捏造樞紐價、技術訊號或成交量。
+- D1 模式預設**不套用距離／VCP合格過濾**；使用者可自行縮小狀態與距離。獨立 VCP 縮量候選模式維持原本的過濾方式。
+- 頁面會並列標示 D1 官方週籌碼日期與上市／上櫃 VCP 盤後行情日期；不是即時通知，也不是已回測的可交易訊號。
+- 測試：`python -m unittest discover -s tests -p 'test_vcp.py' -v` 及 `node --test tests/vcp-integration.test.cjs`。
