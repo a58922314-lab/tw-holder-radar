@@ -12,9 +12,9 @@
 <body><main class="wrap">
 <header class="top"><div class="brand">TAIWAN HOLDER RADAR · TECHNICAL WATCHLIST</div><a class="back" href="./index.html">← 返回大戶籌碼雷達</a></header>
 <h1>VCP 縮量待突破雷達</h1>
-<div class="sub">每日盤後尋找距離整理區樞紐 1%～3%、量能退潮的股票，再和你原本的大戶、散戶與法人資料交叉檢查。這裡顯示的是<strong>觀察候選</strong>，不是已確認突破或買進指令。</div>
+<div class="sub">除了每日尋找距樞紐 1%～3% 的縮量股票，也能自動帶入<strong>最新 D1／D1+ 全部名單</strong>，檢查距樞紐與未符合的 VCP 條件。這裡顯示的是<strong>觀察候選</strong>，不是已確認突破或買進指令。</div>
 <div id="stats" class="stats">
-<div class="stat"><label>目前候選</label><strong id="candidateCount">—</strong></div>
+<div class="stat"><label id="countLabel">目前候選</label><strong id="candidateCount">—</strong></div>
 <div class="stat"><label>歷史行情日數</label><strong id="sessionCount">—</strong></div>
 <div class="stat"><label>足夠K線的股票</label><strong id="coveredCount">—</strong></div>
 <div class="stat"><label>行情日期</label><strong id="marketDates" style="font-size:14px">—</strong></div>
@@ -22,9 +22,10 @@
 <div id="notice" class="warn loading">正在讀取已發布的 VCP 掃描結果…</div>
 <section class="panel">
 <div class="controls">
+<label>篩選來源<select class="control" id="source"><option value="vcp">VCP 縮量候選</option><option value="d1">D1＋D1+ 自動帶入</option><option value="d1plus">僅 D1+ 自動帶入</option></select></label>
 <label>市場<select class="control" id="market"><option value="all">上市＋上櫃</option><option value="上市">上市</option><option value="上櫃">上櫃</option></select></label>
-<label>距樞紐價<select class="control" id="distance"><option value="all">1%～3%</option><option value="near">1%～2%</option><option value="far">2%～3%</option></select></label>
-<label>技術等級<select class="control" id="pattern"><option value="all">全部縮量候選</option><option value="strict">嚴格三段收縮</option><option value="watch">縮量近樞紐</option></select></label>
+<label>距樞紐價<select class="control" id="distance"><option value="all" id="distanceDefault">1%～3%</option><option value="near">1%～2%</option><option value="far">2%～3%</option></select></label>
+<label>VCP 技術狀態<select class="control" id="status"><option value="all">全部技術狀態</option><option value="strict">嚴格三段收縮</option><option value="watch">縮量近樞紐</option><option value="failed">未符合 VCP</option><option value="missing">資料不足／行情落後</option></select></label>
 <label>籌碼交叉<select class="control" id="holder"><option value="all">不限籌碼</option><option value="big">大戶週增加</option><option value="both">大戶增＋散戶減</option><option value="strong">大戶增＋散戶減＋法人買</option></select></label>
 <label>搜尋代號／名稱<input class="control" id="search" placeholder="例如 6257 矽格"></label>
 <button class="btn primary" id="reload">↻ 檢查已發布資料</button>
@@ -32,109 +33,161 @@
 </div>
 <p class="note" id="filterNote">技術條件以 3×25 日固定區間近似整理形態（不是完整波段 VCP）。一般觀察：末段振幅 ≤12%、量縮比 10/50 日均量 &lt;0.9、距樞紐 1%～3%；嚴格三段版：振幅逐段縮小、末段 ≤10%、量縮比 &lt;0.7。當日成交量 ≥500 張。</p>
 <div class="tablearea"><table>
-<thead><tr><th>股票</th><th>最新收盤<br><span class="small">技術行情日期</span></th><th>樞紐價</th><th>距突破</th><th>三段收縮</th><th>量縮比<br><span class="small">10日/50日</span></th><th>大戶週Δ<br><span class="small">pp</span></th><th>散戶週Δ<br><span class="small">pp</span></th><th>法人合計週Δ<br><span class="small">張</span></th><th>評級／籌碼</th></tr></thead>
-<tbody id="results"><tr><td colspan="10" class="empty">載入中…</td></tr></tbody></table></div>
+<thead><tr><th>股票</th><th>最新收盤<br><span class="small">技術行情日期</span></th><th>樞紐價</th><th>距突破</th><th>三段收縮</th><th>量縮比<br><span class="small">10日/50日</span></th><th>大戶週Δ<br><span class="small">pp</span></th><th>散戶週Δ<br><span class="small">pp</span></th><th>法人合計週Δ<br><span class="small">張</span></th><th>D1 分級</th><th>VCP 評估與未達條件</th><th>籌碼核對</th></tr></thead>
+<tbody id="results"><tr><td colspan="12" class="empty">載入中…</td></tr></tbody></table></div>
 <div id="shown" class="note"></div>
 </section>
 <div class="panel">
 <strong>資料判讀與限制</strong>
 <p class="note">行情：TWSE／TPEx 官方盤後日資料；歷史 K 線由自動排程逐次回補。週籌碼：TDCC＋證交所／櫃買中心；週別與行情日未必相同。僅在完整比對週法人報表時顯示週淨買賣，否則標示待補。首次蒐集時可能還沒有足夠的 76 根日 K，不能把 0 個候選當成沒有 VCP 股票。</p>
-<p class="note">當歷史有 220 根以上才另外檢查 50／150／200 日均線與 200 日線上揚；250 根以上再加入 52 週高低點位置。早期訊號一律標示「初步觀察」，不等同 Minervini 完整趨勢樣板。未調整除權息與減資，遇到股本變化需人工核對；突破也有失敗風險。</p>
+<p class="note">D1／D1+ 以最新正式官方週快照及網站原始 D1 規則計算，不使用內建圖片或 CSV 範例。D1 模式預設保留所有合格股票，即使技術面未通過或沒有足夠日K；距離與技術狀態選單可再縮小名單。當歷史有 220 根以上才另外檢查 50／150／200 日均線與 200 日線上揚；250 根以上再加入 52 週高低點位置。早期訊號一律標示「初步觀察」，不等同 Minervini 完整趨勢樣板。未調整除權息與減資，遇到股本變化需人工核對；突破也有失敗風險。</p>
 </div>
 <footer class="footer">僅供研究，不構成投資建議。按「檢查已發布資料」只重新讀取 GitHub Pages 已公布的掃描，不會觸發後端重新抓價。</footer>
 </main>
+<script src="./rules/d1-screening.js"></script>
+<script src="./rules/vcp-integration.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const valid=n=>typeof n==='number'&&Number.isFinite(n);
-const num=(n,d=2)=>valid(n)?n.toFixed(d):'—';
-let candidates=[], latest={}; let report=null; let filtered=[];
-function holderDetails(c){
-  const r=latest[c.code]||{};
-  const finished=valid(r.instExpected)&&r.instExpected>0&&r.instCoverage===r.instExpected;
-  const flow=finished&&valid(r.foreignWeekly)&&valid(r.trustWeekly)?r.foreignWeekly+r.trustWeekly:null;
-  const capitalSafe=valid(r.inventoryChangePct)&&Math.abs(r.inventoryChangePct)<=0.5;
-  const common=valid(r.delta)&&r.delta>0&&valid(r.retail)&&r.retail<0;
-  return {r,flow,common,positive:common&&capitalSafe&&valid(flow)&&flow>0};
+const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const valid=x=>typeof x==="number"&&Number.isFinite(x);
+const num=(x,d=2)=>valid(x)?x.toFixed(d):"—";
+const queryMode=new URLSearchParams(window.location.search).get("mode");
+let report=null, official=null, latest={}, rows=[], filtered=[];
+let loadFailed=false;
+$("source").value=["d1","d1plus","vcp"].includes(queryMode)?queryMode:"vcp";
+
+function holderDetails(c) {
+ const r=latest[String(c.code)]||{};
+ const done=valid(r.instExpected)&&r.instExpected>0&&r.instCoverage===r.instExpected;
+ const flow=done&&valid(r.foreignWeekly)&&valid(r.trustWeekly)?r.foreignWeekly+r.trustWeekly:null;
+ const common=valid(r.delta)&&r.delta>0&&valid(r.retail)&&r.retail<0;
+ const capitalSafe=valid(r.inventoryChangePct)&&Math.abs(r.inventoryChangePct)<=0.5;
+ return {r,flow,common,positive:common&&capitalSafe&&valid(flow)&&flow>0};
 }
-function visible(){
- const q=$('search').value.trim().toLowerCase(), market=$('market').value,
-       dist=$('distance').value, holder=$('holder').value, pattern=$('pattern').value;
- filtered=candidates.filter(c=>{
-   const h=holderDetails(c);
-   if(market!=='all'&&c.market!==market)return false;
-   if(pattern==='strict'&&!c.strict)return false;
-   if(pattern==='watch'&&c.strict)return false;
-   if(dist==='near'&&c.distancePct>2)return false;
-   if(dist==='far'&&c.distancePct<=2)return false;
-   if(q&&!String(c.code).includes(q)&&!String(c.name).toLowerCase().includes(q))return false;
-   if(holder==='big'&&!(valid(h.r.delta)&&h.r.delta>0))return false;
-   if(holder==='both'&&!h.common)return false;
-   if(holder==='strong'&&!h.positive)return false;
-   return true;
+function emptyRow(msg) {
+ $("results").innerHTML='<tr><td colspan="12" class="empty">'+esc(msg)+'</td></tr>';
+}
+function recompute() {
+ if(!report)return;
+ try {
+   rows=window.VCPIntegration.merge(report,official,$("source").value,window.D1Screening);
+   const d1=$("source").value!=="vcp";
+   $("countLabel").textContent=d1?"D1／D1+ 匯入數":"目前 VCP 候選";
+   $("distanceDefault").textContent=d1?"不限距樞紐距離":"1%～3%";
+   $("candidateCount").textContent=rows.length.toLocaleString("zh-TW");
+   $("filterNote").innerHTML=d1
+     ? "D1／D1+ 依最新官方週籌碼自動選出；即使 VCP 未符合，仍保留在表中。<strong>「未符合」不等於買進警示</strong>。技術評估包含樞紐距離、三段收縮幅度、量縮比及未通過原因。"
+     : "以最近 3×25 日固定區間近似 VCP。縮量近樞紐：末段振幅 ≤12%、10/50日量縮比 &lt;0.9、收盤低於樞紐 1%～3%；嚴格版額外要求三段逐次變淺、量縮比 &lt;0.7。";
+   applyFilters();
+ }catch(e){
+   rows=[];filtered=[];
+   $("candidateCount").textContent="—";
+   $("notice").textContent="D1／D1+ 交叉資料不可用："+e.message;
+   emptyRow(e.message);
+ }
+}
+function applyFilters() {
+ if(!report||loadFailed)return;
+ filtered=window.VCPIntegration.filter(rows,{
+   latest, q:$("search").value, market:$("market").value,
+   distance:$("distance").value, status:$("status").value,
+   holder:$("holder").value
  });
  render();
 }
-function render(){
- const rows=filtered.map(c=>{
+function render() {
+ const content=filtered.map(c=>{
    const {r,flow,common,positive}=holderDetails(c);
-   const tier=positive?'籌碼共振':common?'大戶增＋散戶減':'籌碼待觀察';
+   const tier=positive?"籌碼共振":common?"大戶增＋散戶減":"籌碼待觀察";
    const capitalReview=valid(r.inventoryChangePct)&&Math.abs(r.inventoryChangePct)>0.5;
-   return '<tr><td><span class="code">'+esc(c.code)+'</span> <span class="name">'+esc(c.name)+'</span><div class="small">'+esc(c.market)+'</div></td>'+
-     '<td class="big">'+num(c.close)+'<div class="small">'+esc(c.date)+'</div></td>'+
-     '<td class="big">'+num(c.pivot)+'</td><td class="big good">'+num(c.distancePct)+'%<div class="chartbar"><div class="bar" style="width:'+Math.round(100*(3-c.distancePct)/2)+'%"></div></div></td>'+
-     '<td>'+c.depthsPct.map(x=>num(x,1)+'%').join(' → ')+'</td>'+
-     '<td>'+num(c.dryRatio,3)+'<div class="small">'+num(c.volumeLots,0)+' 張</div></td>'+
-     '<td class="'+(r.delta>0?'good':'bad')+'">'+(valid(r.delta)?num(r.delta)+' pp':'待補')+'</td>'+
-     '<td class="'+(r.retail<0?'good':'bad')+'">'+(valid(r.retail)?num(r.retail)+' pp':'待補')+'</td>'+
-     '<td class="'+(flow>0?'good':'bad')+'">'+(valid(flow)?Math.round(flow).toLocaleString('zh-TW'):'待補')+'</td>'+
-     '<td><span class="tag">'+esc(c.grade)+'</span><div class="small">'+esc(c.trendGrade||'初步趨勢')+'</div> <span class="tag '+(positive?'cool':'')+'">'+tier+'</span>'+(capitalReview?'<div class="small bad">集保庫存異動待核對</div>':'')+'</td></tr>';
- }).join('');
- $('results').innerHTML=rows||'<tr><td colspan="10" class="empty"><strong>目前沒有符合所選條件的候選</strong><div>可能是行情歷史尚未累積完整，或篩選條件較嚴格；可試試「不限籌碼」。</div></td></tr>';
- $('shown').textContent='符合篩選：'+filtered.length+' 檔；最近一筆週籌碼日期：'+(window.holderDate||'待補')+'。所有結果皆為收盤後資料，不是即時報價。';
+   const reasons=Array.isArray(c.reasons)?c.reasons:[];
+   const depth=Array.isArray(c.depthsPct)?c.depthsPct.map(x=>num(x,1)+"%").join(" → "):"—";
+   const dist=valid(c.distancePct)?num(c.distancePct)+"%":"—";
+   const near=valid(c.distancePct)&&c.distancePct>=1&&c.distancePct<=3;
+   return '<tr><td><span class="code">'+esc(c.code)+'</span> <span class="name">'+esc(c.name)+
+     '</span><div class="small">'+esc(c.market||"")+'</div></td>'+
+     '<td class="big">'+num(c.close)+'<div class="small">'+esc(c.date||"缺日K")+'</div></td>'+
+     '<td class="big">'+num(c.pivot)+'</td>'+
+     '<td class="big '+(near?"good":"")+'">'+dist+
+     (near?'<div class="chartbar"><div class="bar" style="width:'+Math.max(0,Math.min(100,Math.round((3-c.distancePct)/2*100)))+'%"></div></div>':'')+'</td>'+
+     '<td>'+depth+'</td>'+
+     '<td>'+num(c.dryRatio,3)+'<div class="small">'+(valid(c.volumeLots)?num(c.volumeLots,0)+" 張":"—")+'</div></td>'+
+     '<td class="'+(r.delta>0?"good":"bad")+'">'+(valid(r.delta)?num(r.delta)+" pp":"待補")+'</td>'+
+     '<td class="'+(r.retail<0?"good":"bad")+'">'+(valid(r.retail)?num(r.retail)+" pp":"待補")+'</td>'+
+     '<td class="'+(flow>0?"good":"bad")+'">'+(valid(flow)?Math.round(flow).toLocaleString("zh-TW"):"待補")+'</td>'+
+     '<td><span class="tag '+(c.d1Tier==="D1+"?"cool":"")+'">'+esc(c.d1Tier||"—")+'</span></td>'+
+     '<td><span class="tag '+(c.strict?"cool":"")+'">'+esc(c.status||c.grade||"資料不足")+'</span>'+
+     '<div class="small">'+esc(c.trendGrade||"")+'</div>'+
+     (reasons.length?'<div class="small bad" style="white-space:normal;max-width:285px">'+esc(reasons.join("；"))+'</div>':"")+
+     (c.note?'<div class="small" style="white-space:normal;max-width:285px">'+esc(c.note)+'</div>':"")+'</td>'+
+     '<td><span class="tag '+(positive?"cool":"")+'">'+tier+'</span>'+
+     (capitalReview?'<div class="small bad">集保庫存異動待核對</div>':"")+'</td></tr>';
+ }).join("");
+ if(content)$("results").innerHTML=content;
+ else emptyRow("所選條件沒有股票；D1 模式可把「距樞紐」與「VCP 技術狀態」改回不限。");
+ $("shown").textContent="顯示 "+filtered.length+"／"+rows.length+" 檔；D1 依 "+(official?.date||"待補")+" 官方週籌碼，VCP 依 "+(report?.marketAsOf?.["上市"]||"待補")+"（上市）／"+(report?.marketAsOf?.["上櫃"]||"待補")+"（上櫃）盤後行情。非即時報價。";
 }
-async function load(){
- $('notice').textContent='正在比對網站已發布的官方行情與週籌碼…';
+async function load() {
+ loadFailed=false;
+ $("notice").textContent="正在讀取官方 VCP 技術評估與最新 D1／D1+ 週籌碼…";
  try{
    const [v,w]=await Promise.all([
-     fetch('./data/vcp_signals.json?v='+Date.now(),{cache:'no-store'}),
-     fetch('./data/auto_snapshots.json?v='+Date.now(),{cache:'no-store'})
+     fetch("./data/vcp_signals.json?v="+Date.now(),{cache:"no-store"}),
+     fetch("./data/auto_snapshots.json?v="+Date.now(),{cache:"no-store"})
    ]);
-   if(!v.ok)throw Error('找不到 VCP 技術資料（HTTP '+v.status+'），請檢查資料更新工作流程');
+   if(!v.ok)throw Error("VCP 技術結果無法取得（HTTP "+v.status+"）");
    report=await v.json();
-   if(!Array.isArray(report.candidates))throw Error('VCP 文件格式不正確');
-   candidates=report.candidates;
-   latest={};
+   if(!Array.isArray(report.candidates))throw Error("VCP 技術結果格式錯誤");
+   official=null;latest={};
    if(w.ok){
      const h=await w.json();
-     const s=(h.snapshots||[]).filter(x=>x.type==='auto').sort((a,b)=>a.date.localeCompare(b.date)).at(-1);
-     if(s){window.holderDate=s.date;for(const r of s.records||[])latest[r.code]=r;}
+     official=(h.snapshots||[]).filter(s=>s.type==="auto"&&Array.isArray(s.records)&&s.records.length>1000)
+       .sort((a,b)=>a.date.localeCompare(b.date)).at(-1)||null;
+     if(official)for(const r of official.records)latest[String(r.code)]=r;
    }
-   $('candidateCount').textContent=report.candidateCount??candidates.length;
-   $('sessionCount').textContent=report.storedSessions??0;
-   $('coveredCount').textContent=report.eligibleStocks??0;
-   $('marketDates').innerHTML='上市 '+esc(report.marketAsOf?.['上市']||'待補')+'<div style="font-size:13px">上櫃 '+esc(report.marketAsOf?.['上櫃']||'待補')+'</div>';
-   const created=report.generatedAt?new Date(report.generatedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false}):'未知';
-   const insufficient=(report.eligibleStocks||0)===0;
-   $('notice').innerHTML=insufficient?
-     '<strong>歷史行情正在累積：</strong>目前尚無股票達到至少 76 根有效日 K 的門檻，不能判定 VCP。已儲存 '+esc(report.storedSessions||0)+' 個交易日。資料最後產製：'+esc(created)+'。':
-     '<strong>已讀取官方盤後掃描：</strong>資料產製：'+esc(created)+'；縮量近樞紐 '+candidates.length+' 檔，其中嚴格三段收縮 '+(report.strictCandidateCount??candidates.filter(x=>x.strict).length)+' 檔。'+(report.warnings?.length?' 部分資料源仍有缺漏，請查看 GitHub Actions。':'');
-   visible();
- }catch(e){$('notice').innerHTML='<strong>尚無可驗證 VCP 結果：</strong>'+esc(e.message)+'。頁面不會顯示假資料。';$('results').innerHTML='<tr><td class="empty" colspan="10">尚未建立有效掃描，請檢查 GitHub Actions 的 Weekly TDCC holding updates 執行狀態。</td></tr>';}
+   $("sessionCount").textContent=report.storedSessions??"—";
+   $("coveredCount").textContent=report.eligibleStocks??"—";
+   $("marketDates").innerHTML="上市 "+esc(report.marketAsOf?.["上市"]||"待補")+
+      '<div style="font-size:13px">上櫃 '+esc(report.marketAsOf?.["上櫃"]||"待補")+"</div>";
+   const created=report.generatedAt?new Date(report.generatedAt).toLocaleString("zh-TW",{timeZone:"Asia/Taipei",hour12:false}):"未知";
+   $("notice").innerHTML="<strong>已讀取官方資料：</strong>VCP "+esc(created)+
+     "；最新 D1 週別 "+esc(official?.date||"尚無正式資料")+
+     "；原始 VCP 候選 "+(report.candidateCount??report.candidates.length)+
+     " 檔。"+(report.assessments?"已載入逐檔技術評估。":"逐檔技術評估尚待新一輪更新；D1 不會因此被隱藏。");
+   recompute();
+ }catch(e) {
+   loadFailed=true;
+   $("notice").innerHTML="<strong>資料讀取未成功：</strong>"+esc(e.message)+"；未使用圖片範例或虛構日K。";
+   emptyRow("資料載入失敗，請檢查 GitHub Actions 最近一次執行紀錄。");
+ }
 }
-for(const id of ['search','market','distance','holder','pattern'])$(id).addEventListener(id==='search'?'input':'change',visible);
-$('reload').addEventListener('click',load);
-$('export').addEventListener('click',()=>{
- const headers=['date','code','name','market','close','pivot','distancePct','dryRatio','depth1','depth2','depth3','bigHolderDeltaPP','retailDeltaPP','institutionNetLots'];
- const lines=[headers.join(',')];
+for(const id of ["search","market","distance","status","holder"]){
+ $(id).addEventListener(id==="search"?"input":"change",applyFilters);
+}
+$("source").addEventListener("change",()=>{
+ $("status").value="all";$("distance").value="all";$("holder").value="all";
+ const uri=new URL(window.location.href);
+ uri.searchParams.set("mode",$("source").value);
+ window.history.replaceState(null,"",uri);
+ recompute();
+});
+$("reload").addEventListener("click",load);
+$("export").addEventListener("click",()=>{
+ const columns=["holderDate","date","code","name","market","d1Tier","status","close","pivot","distancePct",
+                "dryRatio","depth1","depth2","depth3","reasons","bigHolderDeltaPP","retailDeltaPP","institutionLots"];
+ const output=[columns.join(",")];
  for(const c of filtered){
    const {r,flow}=holderDetails(c);
-   lines.push([c.date,c.code,c.name,c.market,c.close,c.pivot,c.distancePct,c.dryRatio,...c.depthsPct,r.delta??'',r.retail??'',flow??''].map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(','));
+   const data=[official?.date||"",c.date||"",c.code,c.name,c.market||"",c.d1Tier||"",
+    c.status||"",c.close??"",c.pivot??"",c.distancePct??"",c.dryRatio??"",
+    ...(Array.isArray(c.depthsPct)?c.depthsPct:["","",""]),
+    (c.reasons||[]).join("；"),r.delta??"",r.retail??"",flow??""];
+   output.push(data.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(","));
  }
- const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
- const url=URL.createObjectURL(blob),a=document.createElement('a');
- a.href=url;a.download='VCP縮量待突破_'+(report?.marketAsOf?.['上市']||'未更新')+'.csv';a.click();
- setTimeout(()=>URL.revokeObjectURL(url),1000);
+ const blob=new Blob(["\ufeff"+output.join("\r\n")],{type:"text/csv;charset=utf-8"});
+ const href=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=href;a.download="D1_VCP_交叉雷達_"+(official?.date||"未更新")+".csv";
+ a.click();setTimeout(()=>URL.revokeObjectURL(href),1000);
 });
 load();
 </script>
