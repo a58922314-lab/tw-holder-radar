@@ -189,7 +189,10 @@ function renderSignals(){
     ' → '+esc(report.date)+'。融資週差單位為張，持股週差單位為百分點（pp）；缺值不視為 0。</div>'+
     counts+
     '<div class="panel pad" style="margin-top:18px">'+
-    '<div class="pill-row">'+buttons+'</div>'+
+    '<div class="pill-row">'+buttons+
+    '<a class="button gold" href="./vcp-radar.html?mode=d1" title="使用最新官方D1／D1+名單檢視技術條件">↗ D1／D1+ 自動帶入 VCP</a>'+
+    '<a class="button" href="./vcp-radar.html?mode=d1plus" title="僅顯示最新官方D1+名單">僅 D1+ × VCP</a></div>'+
+    '<p class="hint">VCP 交叉雷達使用最新官方週籌碼與最新盤後技術資料；不把歷史週別誤當今日訊號。</p>'+
     '<p class="hint">採<strong>最高分級</strong>：D1+ ＞ D1 ＞ C2+ ＞ C1。D1+ 需要前週融資餘額>0，才能正確計算融資減少百分比。其他分級直接使用原始策略規則，不以10pp為額外排除條件；持股變化絕對值>10pp會標記「股本異動待核對」。</p>'+
     '<p class="hint">完整週融資與價格覆蓋：'+coverage+' / '+all.length+
     ' 檔；可計算融資減少百分比：'+marginCoverage+' 檔。上市／上櫃來源不足時，股票不會被誤算為 D1 或 C2+。</p>'+
