@@ -142,92 +142,121 @@ def _mean(vals):
     return sum(vals) / len(vals)
 
 
-def scan_one(bars):
-    """A 3x25-session fixed-window proxy, NOT subjective swing-based VCP.
+def assess_one(bars):
+    """Return explainable status for every stock, including failed or missing VCP.
 
-    Bars are chronological [date, open, high, low, close, volume_lots].
-    Excludes today's price and volume from pivot / volume dry-up reference.
-    Returns None unless all conditions (including distance 1..3%) pass.
+    Missing K bars never count as a pass; no weekly D1 data are inferred here.
+    Pivot, dry-up and depths use ONLY candles before the evaluation day.
     """
+    if not bars:
+        return {"status": "資料不足", "reasons": ["缺少官方日K行情"],
+                "bars": 0, "strict": False}
+    last = bars[-1]
+    day, _, _, _, close, volume = last
+    output = {
+        "date": day, "close": round(close, 2),
+        "volumeLots": round(volume, 1), "bars": len(bars),
+        "strict": False, "status": "資料不足", "reasons": [],
+        "trendGrade": "初步趨勢" if len(bars) < 220 else
+                      ("完整趨勢" if len(bars) >= 250 else "均線趨勢")
+    }
     if len(bars) < MIN_BARS:
-        return None
-    today = bars[-1]
+        output["reasons"] = [f"歷史K線不足（{len(bars)}/{MIN_BARS}日）"]
+        return output
     prev = bars[:-1]
-    day, _, _, _, close, volume = today
-    if close <= 0 or volume < 500:
-        return None
+    reasons = []
+    if close <= 0:
+        reasons.append("收盤價無效")
+    if volume < 500:
+        reasons.append("當日量低於500張")
+
     ma50 = _mean([x[4] for x in bars[-50:]])
     if close <= ma50:
-        return None
-    # A more rigorous trend template is required once 220+ bars exist.
+        reasons.append("收盤未站穩50日線")
     if len(bars) >= 220:
         ma150 = _mean([x[4] for x in bars[-150:]])
         ma200 = _mean([x[4] for x in bars[-200:]])
         old200 = _mean([x[4] for x in bars[-220:-20]])
         if not (ma50 > ma150 > ma200 and ma200 > old200):
-            return None
+            reasons.append("50／150／200日線趨勢未通過")
     if len(bars) >= 250:
         low52 = min(x[3] for x in bars[-250:])
         high52 = max(x[2] for x in bars[-250:])
         if close < low52 * 1.3 or close < high52 * 0.75:
-            return None
+            reasons.append("52週高低點位置未通過")
 
     segments = [prev[-75:-50], prev[-50:-25], prev[-25:]]
     depths = []
-    for seg in segments:
-        h = max(x[2] for x in seg)
-        l = min(x[3] for x in seg)
+    for segment in segments:
+        h = max(x[2] for x in segment)
+        l = min(x[3] for x in segment)
         depths.append((h - l) / h * 100)
     d1, d2, d3 = depths
+    pivot = max(x[2] for x in segments[-1])
+    distance = (pivot / close - 1) * 100 if close > 0 else None
     v50 = _mean([x[5] for x in prev[-50:]])
     v10 = _mean([x[5] for x in prev[-10:]])
-    if v50 <= 0:
-        return None
-    dry = v10 / v50
-    # Separate a strict three-stage pattern from a looser but still contracting
-    # watchlist. Never describe the looser tier as a confirmed VCP.
-    strict = d1 >= 10 and d1 > d2 > d3 and d3 <= 10 and dry < 0.7
-    watch = d3 <= 12 and dry < 0.9
-    if not (strict or watch):
-        return None
-    pivot = max(x[2] for x in segments[-1])
-    distance = (pivot / close - 1) * 100
-    if not (1 <= distance <= 3 and close < pivot):
-        return None
-    return {
-        "date": day, "close": round(close, 2), "pivot": round(pivot, 2),
-        "distancePct": round(distance, 2),
+    dry = v10 / v50 if v50 > 0 else None
+
+    output.update({
+        "pivot": round(pivot, 2),
+        "distancePct": round(distance, 2) if distance is not None else None,
         "depthsPct": [round(x, 2) for x in depths],
-        "dryRatio": round(dry, 3),
-        "volumeLots": round(volume, 1),
-        "bars": len(bars),
-        "grade": "嚴格三段收縮" if strict else "縮量近樞紐",
-        "strict": strict,
-        "trendGrade": "完整趨勢" if len(bars) >= 250 else ("均線趨勢" if len(bars) >= 220 else "初步趨勢"),
-    }
+        "dryRatio": round(dry, 3) if dry is not None else None
+    })
+    if not (distance is not None and 1 <= distance <= 3 and close < pivot):
+        reasons.append("距樞紐不在突破前1%～3%")
+    if d3 > 12:
+        reasons.append("末段波動超過12%")
+    if dry is None or dry >= 0.9:
+        reasons.append("10／50日成交量未達縮量比0.9")
+
+    strict_shape = d1 >= 10 and d1 > d2 > d3 and d3 <= 10
+    strict_dry = dry is not None and dry < 0.7
+    strict = strict_shape and strict_dry and not reasons
+    output["strict"] = strict
+    output["reasons"] = reasons
+    output["status"] = ("嚴格三段收縮" if strict else
+                        "縮量近樞紐" if not reasons else "未符合")
+    # Notes are non-blocking, but do not assert the full Minervini trend
+    # template without the necessary history.
+    if len(bars) < 250:
+        output["note"] = f"僅有{len(bars)}根K線；完整趨勢樣板需250根"
+    return output
+
+
+def scan_one(bars):
+    """Legacy VCP candidate API: keep passing-only behaviour and fields."""
+    result = assess_one(bars)
+    if result["status"] not in ("縮量近樞紐", "嚴格三段收縮"):
+        return None
+    result["grade"] = result["status"]
+    return result
 
 
 def scan_all(days, roster):
+    """Build daily diagnostics for ALL stocks, plus VCP-only candidates."""
     by_code = defaultdict(list)
     dates = sorted(days)[-MAX_SESSIONS:]
     for day in dates:
         for code, row in days[day].items():
             if code in roster:
                 by_code[code].append([day] + row)
+    diagnostics = {}
     results = []
     covered = 0
     for code, bars in by_code.items():
+        item = assess_one(bars)
+        diagnostics[code] = item
         if len(bars) < MIN_BARS:
             continue
         covered += 1
-        item = scan_one(bars)
-        if item:
-            result = {"code": code, "name": roster[code]["name"],
-                      "market": roster[code]["market"]}
-            result.update(item)
-            results.append(result)
+        if item["status"] in ("縮量近樞紐", "嚴格三段收縮"):
+            results.append({"code": code, "name": roster[code]["name"],
+                            "market": roster[code]["market"],
+                            **item, "grade": item["status"]})
     results.sort(key=lambda x: (x["distancePct"], x["dryRatio"], x["code"]))
-    return covered, results
+    return covered, results, diagnostics
 
 
 def collect(roster, download, read, write, batch=BACKFILL_PER_RUN):
@@ -295,7 +324,7 @@ def collect(roster, download, read, write, batch=BACKFILL_PER_RUN):
         # Avoid accidentally retaining out-of-order / impossible future sessions.
         days = {k: v for k, v in days.items() if k <= newest}
     write("vcp_daily.json", {"days": days, "skipped": skipped})
-    covered, candidates = scan_all(days, roster)
+    covered, candidates, diagnostics = scan_all(days, roster)
     # Report each market's actual last verified quote day.
     by_market_date = {}
     for market in ("上市", "上櫃"):
@@ -304,13 +333,20 @@ def collect(roster, download, read, write, batch=BACKFILL_PER_RUN):
         by_market_date[market] = max(ds, default=None)
     # Drop stale symbols if one market is behind, and do not mix different dates.
     candidates = [r for r in candidates if r["date"] == by_market_date.get(r["market"])]
+    for code, item in diagnostics.items():
+        market = roster[code]["market"]
+        if item.get("date") != by_market_date.get(market):
+            item["status"] = "行情落後"
+            item["strict"] = False
+            item["reasons"] = [f"此股行情{item.get('date', '缺失')}，市場最新{by_market_date.get(market) or '未知'}"]
     result = {
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "marketAsOf": by_market_date, "storedSessions": len(days),
         "eligibleStocks": covered, "candidateCount": len(candidates),
         "strictCandidateCount": sum(1 for c in candidates if c["strict"]),
         "model": "近樞紐縮量觀察：末段振幅≤12%、量縮比<0.9；嚴格三段版再要求逐段收縮且量縮比<0.7；不是完整波段 VCP",
-        "warnings": warnings[:25], "candidates": candidates
+        "warnings": warnings[:25], "candidates": candidates,
+        "assessments": diagnostics
     }
     write("vcp_signals.json", result)
     return result
