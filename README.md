@@ -99,3 +99,12 @@ A1 母池**只取該週集保 >400 張大戶週增 TOP50**，逐一檢查：
 - D1 模式預設**不套用距離／VCP合格過濾**；使用者可自行縮小狀態與距離。獨立 VCP 縮量候選模式維持原本的過濾方式。
 - 頁面會並列標示 D1 官方週籌碼日期與上市／上櫃 VCP 盤後行情日期；不是即時通知，也不是已回測的可交易訊號。
 - 測試：`python -m unittest discover -s tests -p 'test_vcp.py' -v` 及 `node --test tests/vcp-integration.test.cjs`。
+
+
+## D1／D1+ 本週＋前五期歷史選股
+
+- 「D1 / D1+ / C2+ / C1」新增**本期＋前五期的正式官方選股名單**，每期列出入選 D1+ 與 D1 的代號／名稱、可判定資料覆蓋率、比對週別，並可展開全部名單、切換該週主表、匯出近六期 CSV。
+- 篩選一律重新套用 `rules/d1-screening.js` 的原版 D1／D1+ 分級，不把缺漏的融資與股價欄位當作零，也不混入第三方圖片或使用者匯入名單。
+- 目前後端 `auto_snapshots.json` 本就保存最多十二期官方週別；介面只展示最近六期（最新＋往前五期），沒有存到的日期不會補造。前端統計放在 `rules/d1-history.js`，測試位於 `tests/d1-history.test.cjs`。
+- 在 VCP 雷達的 D1／D1+ 模式同樣可切換最近六期官方名單，並檢查這批歷史選股**目前最新的** VCP 技術狀態（不是選股當週的技術訊號或歷史績效回測）；介面明確標示這兩種日期。
+- GitHub Actions 每次排程都需要有保存官方週資料的權限。若 `git push` 出現 `403 Permission denied to github-actions[bot]`，必須在 repository Settings → Actions → General 的 Workflow permissions 確認 `Read and write permissions`（若組織政策允許）；僅發布 GitHub Pages 並不能取代將官方資料持久保存到 main。
