@@ -56,5 +56,39 @@ class VCPTests(unittest.TestCase):
         self.assertIsNone(vcp_daily._parse_row(source[0], "2026-11-12"))
 
 
+    def test_failed_vcp_still_reports_pivot_volume_and_reason(self):
+        bars = []
+        for i in range(25):
+            bars.append([str(i), 88, 100, 80, 94, 1100])
+        for i in range(25, 50):
+            bars.append([str(i), 93, 100, 87, 96, 950])
+        for i in range(50, 75):
+            bars.append([str(i), 97, 100, 95, 98, 300])
+        bars.append(["today", 98, 99, 96, 98, 100])  # Illiquid, but inspectable.
+        item = vcp_daily.assess_one(bars)
+        self.assertEqual(item["status"], "未符合")
+        self.assertIsNone(vcp_daily.scan_one(bars))
+        self.assertEqual(item["pivot"], 100)
+        self.assertAlmostEqual(item["distancePct"], 2.04)
+        self.assertIn("當日量低於500張", item["reasons"])
+
+    def test_partial_daily_history_has_explicit_missing_reason(self):
+        bars = [[str(i), 98, 100, 90, 98, 600] for i in range(62)]
+        result = vcp_daily.assess_one(bars)
+        self.assertEqual(result["status"], "資料不足")
+        self.assertIn("62/76", result["reasons"][0])
+        self.assertNotIn("pivot", result)
+
+    def test_scan_all_produces_diagnostics_not_only_passed_signals(self):
+        series = {}
+        for i in range(78):
+            series[f"2026-01-{i+1:02d}"] = {"6257": [98, 100, 90, 98, 1000]}
+        roster = {"6257":{"name":"矽格","market":"上櫃"}}
+        covered, passed, assessments = vcp_daily.scan_all(series, roster)
+        self.assertEqual(covered, 1)
+        self.assertEqual(passed, [])
+        self.assertEqual(assessments["6257"]["status"], "未符合")
+        self.assertTrue(assessments["6257"]["reasons"])
+
 if __name__ == "__main__":
     unittest.main()
