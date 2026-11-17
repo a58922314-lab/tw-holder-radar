@@ -19,6 +19,10 @@ jobs:
           python-version: '3.12'
       - name: Validate momentum model
         run: python -m unittest discover -s tests -p 'test_momentum.py' -v
+      - name: Generate real signals from stored official day bars
+        run: |
+          python scripts/momentum_daily.py
+          python -c 'import json; r=json.load(open("data/momentum_signals.json",encoding="utf-8")); print("coverage=",r["evaluatedStocks"],"today=",r["originalSignals"],"3day=",r["recent3Signals"]); assert "assessments" in r and r["evaluatedStocks"] >= 0'
       - name: Validate JavaScript embedded in momentum radar
         run: |
           python -c 'import pathlib,re; s=pathlib.Path("momentum-radar.html").read_text(); parts=re.findall(r"<script>(.*?)</script>",s,re.S); assert parts, "Missing inline script"; pathlib.Path("/tmp/momentum.js").write_text(parts[-1])'
