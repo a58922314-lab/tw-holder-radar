@@ -65,7 +65,7 @@ def assess(bars):
     slope = {str(d): ma[0] > ma[d] for d in (1, 3, 5)}
     volume = bars[-1][5]
     today = bool(cross[-1])
-    recent = bool(any(cross[-3:]))
+    recent = bool(osc[-1] > 0 and any(cross[-3:]))
     original = today and strict and above and slope["1"] and volume >= 500
     relaxed = recent and strict and above and slope["1"] and volume >= 500
     below3 = all(closes[-i] < _sma(closes[-20-i+1:len(closes)-i+1])
