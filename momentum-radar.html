@@ -81,7 +81,7 @@ function selectWeek(date){
  if(!snapshot)return;
  $("week").value=snapshot.date;
  const previous=availableWeeks[0]?.date!==snapshot.date;
- $("ageWarning").hidden=!previous;
+ $("ageWarning").hidden=!previous||$("source").value==="all";
  if(previous){
   $("ageWarning").textContent="歷史籌碼週別 "+snapshot.date+"（比較週 "+(snapshot.compareDate||"資料未提供")+"）選出的 D1／D1+；右側 MACD／布林／MA20／VCP 顯示的是目前最新盤後行情，不是該歷史週當天的訊號，也不是歷史回測。";
  }
@@ -105,10 +105,11 @@ async function load(){
   if(!report.assessments||!window.D1Screening)throw new Error("技術評估或 D1 原始規則缺失");
   availableWeeks=window.MomentumWeek.weeks(official.snapshots||[],window.D1Screening,window.D1History);
   if(!availableWeeks.length)throw new Error("尚無完整的正式官方 D1 週快照，不能用案例資料替代");
+  const preferredWeek=snapshot?.date||requestedWeek;
   weekOptions();
   $("coveredCount").textContent=report.evaluatedStocks??"—";
   $("marketDates").textContent=(report.marketAsOf?.["上市"]||"待補")+"／"+(report.marketAsOf?.["上櫃"]||"待補");
-  selectWeek($("week").value||requestedWeek);
+  selectWeek(preferredWeek);
 
  }catch(e){
   $("notice").textContent="資料無法載入："+e.message;
