@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/refresh.py'
       - 'scripts/vcp_daily.py'
+      - 'rules/momentum-week.js'
+      - 'tests/momentum-week.test.cjs'
       - 'rules/vcp-integration.js'
       - 'tests/vcp-integration.test.cjs'
       - 'tests/test_vcp.py'
@@ -89,6 +91,8 @@ jobs:
           node --check rules/vcp-integration.js
           node --test tests/vcp-integration.test.cjs
           node --check rules/d1-history.js
+          node --check rules/momentum-week.js
+          node --test tests/momentum-week.test.cjs
           node --test tests/d1-history.test.cjs
           node --check rules/d1-screening.js
           node --test tests/d1-screening.test.cjs
@@ -107,6 +111,7 @@ jobs:
           mkdir -p _site/rules
           cp rules/d1-screening.js _site/rules/d1-screening.js
           cp rules/d1-history.js _site/rules/d1-history.js
+          cp rules/momentum-week.js _site/rules/momentum-week.js
           cp rules/vcp-integration.js _site/rules/vcp-integration.js
           cp rules/a1-screening.js _site/rules/a1-screening.js
           cp strategy-validation.html _site/strategy-validation.html

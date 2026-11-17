@@ -8,7 +8,7 @@
 a{color:var(--gold)}.wrap{max-width:1480px;margin:auto;padding:28px 24px 70px}.head{display:flex;justify-content:space-between;gap:20px;align-items:center;flex-wrap:wrap}h1{font-size:clamp(27px,3.6vw,43px);margin:24px 0 5px}.subtitle,.note{color:var(--muted);line-height:1.8}.note{font-size:12px}
 .panel{background:linear-gradient(145deg,#1b2027,#11161c);border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:17px}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0}.stat{background:#1c2329;border:1px solid var(--line);border-radius:12px;padding:17px}.stat b{display:block;color:var(--gold);font-size:25px}.stat small{color:var(--muted)}
-.controls{display:flex;flex-wrap:wrap;gap:11px;align-items:end}.controls label{display:grid;gap:4px;color:var(--muted);font-size:12px}.field,button{background:#202730;border:1px solid #505760;color:var(--text);border-radius:8px;padding:10px;font:inherit}button{cursor:pointer;font-weight:700}.primary{background:var(--gold);color:#241d13;border-color:var(--gold)}.hint{padding:12px 14px;border-left:3px solid var(--gold);background:#2e271d;border-radius:6px}
+.controls{display:flex;flex-wrap:wrap;gap:11px;align-items:end}.controls label{display:grid;gap:4px;color:var(--muted);font-size:12px}.field,button{background:#202730;border:1px solid #505760;color:var(--text);border-radius:8px;padding:10px;font:inherit}button{cursor:pointer;font-weight:700}.primary{background:var(--gold);color:#241d13;border-color:var(--gold)}.hint{padding:12px 14px;border-left:3px solid var(--gold);background:#2e271d;border-radius:6px}.historical{margin-top:12px;border-left-color:var(--red);background:#34271f;color:#f6dab4}.field:disabled{opacity:.5}
 .tablearea{overflow:auto;margin-top:18px;border:1px solid var(--line);border-radius:10px}table{border-collapse:collapse;width:100%;min-width:1220px}th{text-align:left;background:#222a33;color:var(--gold);font-size:12px;padding:12px}td{padding:12px;border-bottom:1px solid #303640;vertical-align:top}tbody tr:hover{background:#263039}td small{color:var(--muted);display:block}.good{color:var(--green)}.bad{color:var(--red)}.tag{display:inline-block;border:1px solid #696047;background:#30291a;color:#f1d59a;border-radius:5px;padding:2px 7px;font-size:12px}.tag.on{border-color:#46765c;background:#173226;color:#b5f3ce}.footer{color:var(--muted);font-size:12px;margin-top:22px}
 @media(max-width:680px){.wrap{padding:16px 12px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.panel{padding:12px}}
 </style></head>
@@ -17,14 +17,17 @@ a{color:var(--gold)}.wrap{max-width:1480px;margin:auto;padding:28px 24px 70px}.h
 <h1>D1 動能啟動雷達</h1>
 <p class="subtitle">將官方 D1／D1+ 大戶籌碼名單，自動與 MACD(12,26,9) 柱狀體翻正、布林通道(20,2) 開口、向上 MA20 交叉確認。保留未符合的 D1 股票，避免誤把資料不足當成沒有選股。</p>
 <section class="stats">
-<div class="stat"><small>最新 D1／D1+ 名單</small><b id="d1Count">—</b></div>
+<div class="stat"><small>所選週 D1／D1+ 名單</small><b id="d1Count">—</b></div>
 <div class="stat"><small>本次篩選通過</small><b id="passedCount">—</b></div>
 <div class="stat"><small>日K足夠且未落後</small><b id="coveredCount">—</b></div>
 <div class="stat"><small>上市／上櫃行情日</small><b style="font-size:13px" id="marketDates">—</b></div>
 </section>
 <div class="panel hint" id="notice">讀取官方盤後技術與週籌碼資料中…</div>
+<div class="panel hint historical" id="ageWarning" hidden role="status"></div>
 <section class="panel"><div class="controls">
 <label>來源<select class="field" id="source"><option value="d1">D1＋D1+</option><option value="d1plus">僅 D1+</option><option value="all">全市場技術掃描</option></select></label>
+<label id="weekField">D1 籌碼週別<select class="field" id="week" aria-label="選擇 D1 歷史籌碼週別"><option value="">讀取中…</option></select></label>
+<button id="latestWeek" title="快速切回最新的正式 D1 籌碼週別">回最新週</button>
 <label>MACD<select class="field" id="macd"><option value="today">當日剛翻正</option><option value="recent">最近三日翻正且仍為正</option></select></label>
 <label>布林通道<select class="field" id="bb"><option value="strict">雙向張開＋帶寬增加</option><option value="wide">帶寬增加</option></select></label>
 <label>MA20 上揚<select class="field" id="slope"><option value="1">比前1日上揚</option><option value="3">比前3日上揚</option><option value="5">比前5日上揚</option></select></label>
@@ -35,14 +38,16 @@ a{color:var(--gold)}.wrap{max-width:1480px;margin:auto;padding:28px 24px 70px}.h
 <label>股票搜尋<input class="field" id="search" placeholder="股票代號／名稱"></label>
 <button class="primary" id="reload">更新畫面</button><button id="export">匯出 CSV</button>
 </div>
-<p class="note">預設依原貼文的嚴格三條件。任何技術條件變更，均在最新官方日K評估結果上重算；VCP 篩選是同日獨立技術觀察，並非「突破前已符合」的歷史證明。三天連續收盤低於當日 MA20 僅標示出場警示，尚未計算報酬。</p>
-<div class="tablearea"><table><thead><tr><th>股票</th><th>盤後收盤<br>技術日期</th><th>D1 分級<br>大戶週Δ</th><th>MACD 翻正</th><th>布林通道<br>帶寬%</th><th>MA20<br>距離%</th><th>成交量</th><th>VCP 現況</th><th>本次條件／出場警示</th></tr></thead>
+<p class="note">預設依原貼文的嚴格三條件。可切換所有已保存的正式 D1 週別，名單依選定週重新計算，但 MACD、布林、MA20、VCP 全部使用最新技術行情，並非選股當週的歷史回測。任何技術條件變更，均在最新官方日K評估結果上重算；VCP 篩選是同日獨立技術觀察，並非「突破前已符合」的歷史證明。三天連續收盤低於當日 MA20 僅標示出場警示，尚未計算報酬。</p>
+<div class="tablearea"><table><thead><tr><th>股票</th><th>盤後收盤<br>技術日期</th><th>所選週 D1 分級<br>大戶週Δ</th><th>MACD 翻正</th><th>布林通道<br>帶寬%</th><th>MA20<br>距離%</th><th>成交量</th><th>VCP 現況</th><th>本次條件／出場警示</th></tr></thead>
 <tbody id="results"><tr><td colspan="9">載入中…</td></tr></tbody></table></div>
 <p id="shown" class="note"></p></section>
-<section class="panel"><strong>研究資料的限制</strong><p class="note">技術指標取自官方 TWSE／TPEx 每日 OHLCV，可能尚未回補完整80根日K；MACD 使用加權收盤價 (H+L+2C)/4，EMA 初始種子與 XQ 可能有微幅差異。股價未還原除權息。D1 以最近一次正式官方週快照套用原本規則；與日K日期可能不同。沒有將本週大戶變動倒填到過去的 K 線。這是每日盤後觀察名單，<strong>尚不是已驗證回測績效或下單指令</strong>。</p></section>
+<section class="panel"><strong>研究資料的限制</strong><p class="note">技術指標取自官方 TWSE／TPEx 每日 OHLCV，可能尚未回補完整80根日K；MACD 使用加權收盤價 (H+L+2C)/4，EMA 初始種子與 XQ 可能有微幅差異。股價未還原除權息。D1 依使用者所選的正式官方週快照套用原本規則，週別與最新日K日期可能不同。歷史 D1 名單只用於追蹤這些股票的當前技術狀態；絕不將當前技術數據或最新籌碼倒填成歷史週的買進訊號。這是每日盤後觀察名單，<strong>尚不是已驗證回測績效或下單指令</strong>。</p></section>
 <footer class="footer">資料由現有 GitHub Actions 更新。按「更新畫面」僅重新讀取已發布資料，不會立即向交易所抓取行情。</footer>
 </main>
 <script src="./rules/d1-screening.js"></script>
+<script src="./rules/d1-history.js"></script>
+<script src="./rules/momentum-week.js"></script>
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
@@ -50,7 +55,42 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const valid=x=>typeof x==="number"&&Number.isFinite(x);
 const fmt=(x,d=2)=>valid(x)?x.toFixed(d):"—";
 const q=new URLSearchParams(location.search); if(q.get("mode")==="all")$("source").value="all";
-let report=null,vcps={},snapshot=null,rows=[],visible=[];
+let report=null,vcps={},snapshot=null,availableWeeks=[],rows=[],visible=[];
+const requestedWeek=q.get("week");
+function syncUrl(){
+ const url=new URL(location.href);
+ if(snapshot?.date)url.searchParams.set("week",snapshot.date);
+ else url.searchParams.delete("week");
+ if($("source").value==="all")url.searchParams.set("mode","all");
+ else url.searchParams.delete("mode");
+ history.replaceState(null,"",url);
+}
+function weekOptions(){
+ const picker=$("week");picker.replaceChildren();
+ for(const [i,w] of availableWeeks.entries()){
+  const option=document.createElement("option");
+  option.value=w.date;
+  option.textContent=(i===0?"最新週 ":"歷史週 ")+w.date+"｜D1 "+w.d1.length+"、D1+ "+w.d1plus.length;
+  picker.append(option);
+ }
+ picker.disabled=$("source").value==="all";
+ $("latestWeek").disabled=$("source").value==="all";
+}
+function selectWeek(date){
+ snapshot=window.MomentumWeek.selected(availableWeeks,date);
+ if(!snapshot)return;
+ $("week").value=snapshot.date;
+ const previous=availableWeeks[0]?.date!==snapshot.date;
+ $("ageWarning").hidden=!previous||$("source").value==="all";
+ if(previous){
+  $("ageWarning").textContent="歷史籌碼週別 "+snapshot.date+"（比較週 "+(snapshot.compareDate||"資料未提供")+"）選出的 D1／D1+；右側 MACD／布林／MA20／VCP 顯示的是目前最新盤後行情，不是該歷史週當天的訊號，也不是歷史回測。";
+ }
+ rows=window.MomentumWeek.merge(report.assessments,vcps,snapshot,$("source").value);
+ $("d1Count").textContent=(snapshot.d1.length+snapshot.d1plus.length).toLocaleString("zh-TW");
+ const latestMarket=report.marketAsOf||{};
+ $("notice").textContent="目前選擇 D1 籌碼週別："+snapshot.date+"（比較週 "+(snapshot.compareDate||"待補")+"）；最新日K上市 "+(latestMarket["上市"]||"待補")+"／上櫃 "+(latestMarket["上櫃"]||"待補")+"。技術欄位一律為目前最新狀態，並非選股當週的技術訊號。";
+ syncUrl();apply();
+}
 async function load(){
  try{
   $("notice").textContent="讀取最新官方資料…";
@@ -63,21 +103,14 @@ async function load(){
   report=await m.json();const official=await s.json();const vcp=await v.json();
   vcps=vcp.assessments||{};
   if(!report.assessments||!window.D1Screening)throw new Error("技術評估或 D1 原始規則缺失");
-  snapshot=(official.snapshots||[]).filter(x=>x.type==="auto"&&Array.isArray(x.records)&&x.records.length>1000).sort((a,b)=>a.date.localeCompare(b.date)).at(-1)||null;
-  if(!snapshot)throw new Error("尚無正式官方 D1 週快照，不能用案例資料替代");
-  const qualified=new Map();
-  for(const stock of snapshot.records){
-   const d=window.D1Screening.qualify(stock);
-   if(d&&["D1","D1+"].includes(d.tier))qualified.set(String(stock.code),{tier:d.tier,delta:stock.delta});
-  }
-  rows=Object.entries(report.assessments).map(([code,a])=>({
-   ...a,code,holder:qualified.get(code)||null,vcp:vcps[code]?.status||"資料不足"
-  }));
-  $("d1Count").textContent=qualified.size.toLocaleString("zh-TW");
+  availableWeeks=window.MomentumWeek.weeks(official.snapshots||[],window.D1Screening,window.D1History);
+  if(!availableWeeks.length)throw new Error("尚無完整的正式官方 D1 週快照，不能用案例資料替代");
+  const preferredWeek=snapshot?.date||requestedWeek;
+  weekOptions();
   $("coveredCount").textContent=report.evaluatedStocks??"—";
   $("marketDates").textContent=(report.marketAsOf?.["上市"]||"待補")+"／"+(report.marketAsOf?.["上櫃"]||"待補");
-  $("notice").textContent="最新 D1 籌碼週別："+snapshot.date+"；日K上市 "+(report.marketAsOf?.["上市"]||"待補")+"／上櫃 "+(report.marketAsOf?.["上櫃"]||"待補")+"。各欄日期不同，不能視為同一天的成交訊號。";
-  apply();
+  selectWeek(preferredWeek);
+
  }catch(e){
   $("notice").textContent="資料無法載入："+e.message;
   $("results").innerHTML='<tr><td colspan="9">資料待補；沒有以假行情生成訊號。</td></tr>';
@@ -124,14 +157,21 @@ function apply(){
  });
  $("results").innerHTML=out.join("")||'<tr><td colspan="9">沒有符合目前篩選的股票；可切換「顯示全部」檢查未通過原因。</td></tr>';
 }
-for(const id of ["source","macd","bb","slope","volume","distance","vcp","show","search"])
+for(const id of ["macd","bb","slope","volume","distance","vcp","show","search"])
  $(id).addEventListener(id==="search"?"input":"change",apply);
+$("source").addEventListener("change",()=>{
+ $("week").disabled=$("source").value==="all";
+ $("latestWeek").disabled=$("source").value==="all";
+ if(report)selectWeek(snapshot?.date);
+});
+$("week").addEventListener("change",()=>{if(report)selectWeek($("week").value);});
+$("latestWeek").addEventListener("click",()=>{if(report)selectWeek(availableWeeks[0]?.date);});
 $("reload").addEventListener("click",load);
 $("export").addEventListener("click",()=>{
  const cols=["技術日期","D1週別","股票代號","名稱","市場","D1分級","大戶周變化pp","MACD當日翻正","MACD近3日翻正","布林雙向擴張","帶寬增加","MA20","距MA20%","成交量張","VCP狀態","符合當前篩選","連3日跌破MA20"];
  const csv=[cols,...visible.map(r=>[r.date||"",snapshot?.date||"",r.code,r.name,r.market,r.holder?.tier||"",r.holder?.delta??"",r.macdFlipToday??"",r.macdFlip3??"",r.bbStrict??"",r.bbWiden??"",r.ma20??"",r.distMA20Pct??"",r.volumeLots??"",r.vcp,qualify(r),r.belowMA20ThreeDays??""])]
  .map(row=>row.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(",")).join("\r\n");
- const url=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="D1_動能雷達_"+(snapshot?.date||"資料待補")+".csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
+ const url=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="D1_動能雷達_籌碼週_"+(snapshot?.date||"資料待補")+".csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
 });
 load();
 </script></body></html>
