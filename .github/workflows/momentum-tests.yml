@@ -1,0 +1,25 @@
+name: D1 momentum radar checks
+on:
+  pull_request:
+    paths:
+      - 'scripts/momentum_daily.py'
+      - 'tests/test_momentum.py'
+      - 'momentum-radar.html'
+      - '.github/workflows/momentum-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate momentum model
+        run: python -m unittest discover -s tests -p 'test_momentum.py' -v
+      - name: Validate JavaScript embedded in momentum radar
+        run: |
+          python -c 'import pathlib,re; s=pathlib.Path("momentum-radar.html").read_text(); parts=re.findall(r"<script>(.*?)</script>",s,re.S); assert parts, "Missing inline script"; pathlib.Path("/tmp/momentum.js").write_text(parts[-1])'
+          node --check /tmp/momentum.js
