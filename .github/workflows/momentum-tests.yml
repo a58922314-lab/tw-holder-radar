@@ -6,6 +6,8 @@ on:
       - 'scripts/momentum_backtest.py'
       - 'tests/test_momentum.py'
       - 'momentum-radar.html'
+      - 'rules/momentum-week.js'
+      - 'tests/momentum-week.test.cjs'
       - '.github/workflows/momentum-tests.yml'
   workflow_dispatch:
 permissions:
@@ -20,6 +22,10 @@ jobs:
           python-version: '3.12'
       - name: Validate momentum model
         run: python -m unittest discover -s tests -p 'test_momentum.py' -v
+      - name: Verify historical official D1 week selection
+        run: |
+          node --check rules/momentum-week.js
+          node --test tests/momentum-week.test.cjs
       - name: Generate real signals from stored official day bars
         run: |
           python scripts/momentum_daily.py
