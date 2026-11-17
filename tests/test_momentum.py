@@ -38,6 +38,11 @@ class MomentumTests(unittest.TestCase):
         self.assertTrue(r["passRecent3"])
         self.assertFalse(r["passOriginal"])
 
+    def test_three_day_mode_requires_oscillator_still_positive(self):
+        r = momentum.assess(bars([100] * 77 + [105, 100, 90]))
+        self.assertLess(r["macdOsc"], 0)
+        self.assertFalse(r["macdFlip3"])
+
     def test_exit_warning_after_three_daily_closes_below_ma(self):
         r = momentum.assess(bars([100] * 77 + [95, 94, 93]))
         self.assertTrue(r["belowMA20ThreeDays"])
