@@ -85,6 +85,7 @@ jobs:
           python -c 'import pathlib,re; x=pathlib.Path("vcp-radar.html").read_text(); m=re.search("<script>(.*?)</script>",x,re.S); assert m, "Missing VCP page script"; pathlib.Path("/tmp/vcp-radar.js").write_text(m.group(1))'
           node --check /tmp/vcp-radar.js
           python -m unittest discover -s tests -p 'test_vcp.py' -v
+          python -m unittest discover -s tests -p 'test_momentum.py' -v
           node --check rules/vcp-integration.js
           node --test tests/vcp-integration.test.cjs
           node --check rules/d1-history.js
@@ -100,6 +101,9 @@ jobs:
           mkdir -p _site/data
           cp index.html _site/index.html
           cp vcp-radar.html _site/vcp-radar.html
+          cp momentum-radar.html _site/momentum-radar.html
+          python scripts/momentum_daily.py
+          cp data/momentum_signals.json _site/data/momentum_signals.json
           mkdir -p _site/rules
           cp rules/d1-screening.js _site/rules/d1-screening.js
           cp rules/d1-history.js _site/rules/d1-history.js
