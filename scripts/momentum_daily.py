@@ -105,11 +105,28 @@ def build(days, roster, market_as_of=None):
                 1 for code in days[day] if code in roster and roster[code].get("market") == market
             ) >= 200]
             market_as_of[market] = dates[-1] if dates else None
+    # Missing individual trading sessions are not silently bridged. Indicators
+    # cannot use 79 observed sessions spread over 80+ market sessions as 80 bars.
+    market_sessions = {}
+    for market in ("上市", "上櫃"):
+        market_sessions[market] = [
+            day for day in sorted(days)[-260:]
+            if isinstance(days[day], dict) and sum(
+                1 for c in days[day] if c in roster and roster[c].get("market") == market
+            ) >= 200
+        ]
     checks = {}
     for code, info in roster.items():
-        result = assess(series.get(code, []))
+        market = info.get("market", "")
+        stock_bars = series.get(code, [])
+        result = assess(stock_bars)
+        observed = [bar[0] for bar in stock_bars[-MIN_BARS:]]
+        expected = market_sessions.get(market, [])[-MIN_BARS:]
+        if len(expected) >= MIN_BARS and len(observed) >= MIN_BARS and observed != expected:
+            result = {"status": "資料不足", "bars": len(stock_bars),
+                      "reason": "最近80個市場交易日有個股日K缺漏"}
         result["name"] = info.get("name", "")
-        result["market"] = info.get("market", "")
+        result["market"] = market
         if result.get("date") and result["date"] != market_as_of.get(result["market"]):
             result["status"] = "行情落後"
             result["passOriginal"] = result["passRecent3"] = False
