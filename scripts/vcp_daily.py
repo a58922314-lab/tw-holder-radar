@@ -22,6 +22,9 @@ MIN_BARS = 76
 SEGMENT = 25
 # Up to 22 missed weekdays per market per refresh: resume incrementally on next run.
 BACKFILL_PER_RUN = max(0, min(80, int(os.getenv("VCP_BACKFILL_PER_RUN", "65"))))
+# Retry missing individual-stock OHLCV even when a date has >200 securities.
+GAP_REPAIR_PER_RUN = max(0, min(25, int(os.getenv("VCP_GAP_REPAIR_PER_RUN", "12"))))
+GAP_REPAIR_MAX_CHECKS = 2
 
 
 def _number(s):
@@ -259,6 +262,66 @@ def scan_all(days, roster):
     return covered, results, diagnostics
 
 
+def repair_individual_bar_gaps(days, roster, download, attempts=None,
+                               per_market_limit=GAP_REPAIR_PER_RUN):
+    """Re-fetch official full-day reports for sparse stock-level gaps.
+
+    Previously, a market day with >=200 quotes was never revisited for stock
+    gaps. A candidate code must have real observations shortly before and
+    after the missing day. This does not prove the security traded that day.
+    Only official valid rows are inserted; bounded attempt history prevents
+    repeated requests when legitimate no-trade gaps persist.
+    """
+    attempts = attempts if isinstance(attempts, dict) else {}
+    if not per_market_limit:
+        return 0, 0, attempts, []
+    warnings = []
+    filled_total = 0
+    checks = 0
+    for market in ("上市", "上櫃"):
+        members = {c for c, r in roster.items() if r.get("market") == market}
+        sessions = [d for d in sorted(days)[-MAX_SESSIONS:]
+                    if isinstance(days[d], dict) and
+                    sum(c in members for c in days[d]) >= 200][-100:]
+        candidates = []
+        for i in range(1, len(sessions)-1):
+            day = sessions[i]
+            nearby_before = set()
+            nearby_after = set()
+            for other in sessions[max(0, i-3):i]:
+                nearby_before.update(c for c in days[other] if c in members)
+            for other in sessions[i+1:i+4]:
+                nearby_after.update(c for c in days[other] if c in members)
+            observed = {c for c in days[day] if c in members}
+            absent = (nearby_before & nearby_after) - observed
+            if absent and int(attempts.get(market + ":" + day, 0)) < GAP_REPAIR_MAX_CHECKS:
+                candidates.append((len(absent), day, absent))
+        candidates.sort(key=lambda item: (-item[0], -int(item[1].replace("-", ""))))
+        for _, day, missing in candidates[:per_market_limit]:
+            key = market + ":" + day
+            attempts[key] = int(attempts.get(key, 0)) + 1
+            checks += 1
+            try:
+                time.sleep(0.35)
+                payload = json.loads(download(history_url(market, day)).decode("utf-8-sig"))
+                records = parse_history(payload, day)
+                recovered = 0
+                for code in missing:
+                    if code in records and code in roster and roster[code].get("market") == market:
+                        days[day][code] = records[code]
+                        recovered += 1
+                filled_total += recovered
+                if recovered:
+                    print("Recovered stock-level OHLCV gaps",market,day,"filled",recovered,
+                          "of",len(missing))
+            except Exception as err:
+                warnings.append(f"補抓個股日K {market} {day}: {str(err)[:115]}")
+    recent_days = set(sorted(days)[-130:])
+    attempts = {k:v for k,v in attempts.items() if k.split(":")[-1] in recent_days
+                and isinstance(v, int) and v > 0}
+    return filled_total, checks, attempts, warnings
+
+
 def collect(roster, download, read, write, batch=BACKFILL_PER_RUN):
     """Collect latest official daily OHLCV and a small historical catch-up batch.
 
@@ -268,6 +331,7 @@ def collect(roster, download, read, write, batch=BACKFILL_PER_RUN):
     cache = read("vcp_daily.json", {"days": {}, "skipped": {"上市": [], "上櫃": []}})
     days = cache.get("days") or {}
     skipped = cache.get("skipped") or {"上市": [], "上櫃": []}
+    repair_attempts = cache.get("repairAttempts") or {}
     warnings = []
     recent_by_market = {}
     for market, url in (("上市", TWSE_LATEST), ("上櫃", TPEX_LATEST)):
@@ -319,11 +383,17 @@ def collect(roster, download, read, write, batch=BACKFILL_PER_RUN):
                     warnings.append(f"VCP {market} {day}: {str(err)[:100]}")
             skipped[market] = sorted(known_skipped)[-300:]
 
+        recovered, checked, repair_attempts, repair_warnings = repair_individual_bar_gaps(
+            days, roster, download, repair_attempts
+        )
+        warnings.extend(repair_warnings)
+        print(f"Daily OHLCV gap repair: checked {checked} official reports; "
+              f"recovered {recovered} valid missing stock bars")
         cutoff = (end - timedelta(days=LOOKBACK_CALENDAR_DAYS)).isoformat()
         days = {k: v for k, v in days.items() if k >= cutoff}
         # Avoid accidentally retaining out-of-order / impossible future sessions.
         days = {k: v for k, v in days.items() if k <= newest}
-    write("vcp_daily.json", {"days": days, "skipped": skipped})
+    write("vcp_daily.json", {"days": days, "skipped": skipped, "repairAttempts": repair_attempts})
     covered, candidates, diagnostics = scan_all(days, roster)
     # Report each market's actual last verified quote day.
     by_market_date = {}

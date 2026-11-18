@@ -13,6 +13,8 @@ on:
       - 'rules/vcp-integration.js'
       - 'tests/vcp-integration.test.cjs'
       - 'scripts/vcp_daily.py'
+      - 'scripts/momentum_coverage.py'
+      - 'tests/test_momentum_coverage.py'
       - 'tests/test_vcp.py'
       - 'data/vcp_signals.json'
       - 'rules/d1-screening.js'
@@ -56,6 +58,7 @@ jobs:
           node --check /tmp/vcp-radar.js
           python -m unittest discover -s tests -p 'test_vcp.py' -v
           python -m unittest discover -s tests -p 'test_momentum.py' -v
+          python -m unittest discover -s tests -p 'test_momentum_coverage.py' -v
           node --check rules/vcp-integration.js
           node --test tests/vcp-integration.test.cjs
           node --check rules/d1-history.js

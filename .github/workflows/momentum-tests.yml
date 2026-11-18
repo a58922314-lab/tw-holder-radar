@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'scripts/momentum_daily.py'
+      - 'scripts/momentum_coverage.py'
+      - 'tests/test_momentum_coverage.py'
       - 'scripts/momentum_backtest.py'
       - 'tests/test_momentum.py'
       - 'momentum-radar.html'
@@ -26,6 +28,8 @@ jobs:
         run: |
           node --check rules/momentum-week.js
           node --test tests/momentum-week.test.cjs
+      - name: Verify official OHLCV gap recovery
+        run: python -m unittest discover -s tests -p 'test_momentum_coverage.py' -v
       - name: Generate real signals from stored official day bars
         run: |
           python scripts/momentum_daily.py

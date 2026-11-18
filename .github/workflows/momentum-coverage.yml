@@ -1,0 +1,29 @@
+name: Diagnose momentum OHLCV coverage
+on:
+  pull_request:
+    paths:
+      - 'scripts/momentum_coverage.py'
+      - 'scripts/momentum_daily.py'
+      - 'scripts/vcp_daily.py'
+      - 'tests/test_momentum.py'
+      - 'tests/test_momentum_coverage.py'
+      - 'tests/test_vcp.py'
+      - '.github/workflows/momentum-coverage.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inspect saved market OHLCV gaps
+        run: python scripts/momentum_coverage.py
+      - name: Run scanner and collector tests
+        run: |
+          python -m unittest discover -s tests -p 'test_momentum.py' -v
+          python -m unittest discover -s tests -p 'test_momentum_coverage.py' -v
+          python -m unittest discover -s tests -p 'test_vcp.py' -v

@@ -8,7 +8,7 @@
 a{color:var(--gold)}.wrap{max-width:1480px;margin:auto;padding:28px 24px 70px}.head{display:flex;justify-content:space-between;gap:20px;align-items:center;flex-wrap:wrap}h1{font-size:clamp(27px,3.6vw,43px);margin:24px 0 5px}.subtitle,.note{color:var(--muted);line-height:1.8}.note{font-size:12px}
 .panel{background:linear-gradient(145deg,#1b2027,#11161c);border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:17px}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0}.stat{background:#1c2329;border:1px solid var(--line);border-radius:12px;padding:17px}.stat b{display:block;color:var(--gold);font-size:25px}.stat small{color:var(--muted)}
-.controls{display:flex;flex-wrap:wrap;gap:11px;align-items:end}.controls label{display:grid;gap:4px;color:var(--muted);font-size:12px}.field,button{background:#202730;border:1px solid #505760;color:var(--text);border-radius:8px;padding:10px;font:inherit}button{cursor:pointer;font-weight:700}.primary{background:var(--gold);color:#241d13;border-color:var(--gold)}.hint{padding:12px 14px;border-left:3px solid var(--gold);background:#2e271d;border-radius:6px}.historical{margin-top:12px;border-left-color:var(--red);background:#34271f;color:#f6dab4}.field:disabled{opacity:.5}
+.controls{display:flex;flex-wrap:wrap;gap:11px;align-items:end}.controls label{display:grid;gap:4px;color:var(--muted);font-size:12px}.field,button{background:#202730;border:1px solid #505760;color:var(--text);border-radius:8px;padding:10px;font:inherit}button{cursor:pointer;font-weight:700}.primary{background:var(--gold);color:#241d13;border-color:var(--gold)}.hint{padding:12px 14px;border-left:3px solid var(--gold);background:#2e271d;border-radius:6px}.historical{margin-top:12px;border-left-color:var(--red);background:#34271f;color:#f6dab4}.coverage{font-size:13px;color:#d7dddf}.coverage strong{color:var(--gold)}.warning-detail{white-space:normal;max-width:320px;color:#efba97!important}.reference{color:#d7b67e!important}.field:disabled{opacity:.5}
 .tablearea{overflow:auto;margin-top:18px;border:1px solid var(--line);border-radius:10px}table{border-collapse:collapse;width:100%;min-width:1220px}th{text-align:left;background:#222a33;color:var(--gold);font-size:12px;padding:12px}td{padding:12px;border-bottom:1px solid #303640;vertical-align:top}tbody tr:hover{background:#263039}td small{color:var(--muted);display:block}.good{color:var(--green)}.bad{color:var(--red)}.tag{display:inline-block;border:1px solid #696047;background:#30291a;color:#f1d59a;border-radius:5px;padding:2px 7px;font-size:12px}.tag.on{border-color:#46765c;background:#173226;color:#b5f3ce}.footer{color:var(--muted);font-size:12px;margin-top:22px}
 @media(max-width:680px){.wrap{padding:16px 12px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.panel{padding:12px}}
 </style></head>
@@ -24,6 +24,7 @@ a{color:var(--gold)}.wrap{max-width:1480px;margin:auto;padding:28px 24px 70px}.h
 </section>
 <div class="panel hint" id="notice">讀取官方盤後技術與週籌碼資料中…</div>
 <div class="panel hint historical" id="ageWarning" hidden role="status"></div>
+<div class="panel coverage" id="coverageSummary" role="status">讀取全市場資料覆蓋情況中…</div>
 <section class="panel"><div class="controls">
 <label>來源<select class="field" id="source"><option value="d1">D1＋D1+</option><option value="d1plus">僅 D1+</option><option value="all">全市場技術掃描</option></select></label>
 <label id="weekField">D1 籌碼週別<select class="field" id="week" aria-label="選擇 D1 歷史籌碼週別"><option value="">讀取中…</option></select></label>
@@ -34,7 +35,7 @@ a{color:var(--gold)}.wrap{max-width:1480px;margin:auto;padding:28px 24px 70px}.h
 <label>最低成交量<select class="field" id="volume"><option value="500">500 張</option><option value="1000">1000 張</option><option value="0">不限制</option></select></label>
 <label>距20MA上限<select class="field" id="distance"><option value="all">不限</option><option value="3">不超過3%</option><option value="5">不超過5%</option><option value="10">不超過10%</option></select></label>
 <label>VCP 檢查<select class="field" id="vcp"><option value="all">不限</option><option value="near">縮量近樞紐或嚴格</option><option value="strict">僅嚴格VCP</option></select></label>
-<label>結果<select class="field" id="show"><option value="all">顯示全部與未符合</option><option value="pass">只看通過</option><option value="missing">資料不足／落後</option></select></label>
+<label>結果<select class="field" id="show"><option value="all">顯示全部與未符合</option><option value="pass">只看通過</option><option value="ready">資料完整（含未通過）</option><option value="missing">資料不足／落後</option></select></label>
 <label>股票搜尋<input class="field" id="search" placeholder="股票代號／名稱"></label>
 <button class="primary" id="reload">更新畫面</button><button id="export">匯出 CSV</button>
 </div>
@@ -54,6 +55,17 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const valid=x=>typeof x==="number"&&Number.isFinite(x);
 const fmt=(x,d=2)=>valid(x)?x.toFixed(d):"—";
+const qualityName={ready:"技術資料完整",gap:"個股缺日K",stale:"行情落後",short:"歷史K線不足",no_history:"無有效日K",market_short:"市場行情不足"};
+function showCoverage(){
+ const c=report?.coverage;
+ if(!c){$("coverageSummary").textContent="尚未取得逐檔資料缺漏診斷；日K完整性仍以技術雷達狀態為準。";return;}
+ const n=c.byReason||{},total=c.total||0,ready=c.ready||0;
+ const pct=total?(100*ready/total).toFixed(1)+"%":"—";
+ const listed=c.byMarket?.["上市"]||{},otc=c.byMarket?.["上櫃"]||{};
+ $("coverageSummary").innerHTML="<strong>全市場官方日K覆蓋率 "+pct+"（"+ready+"／"+total+" 檔）</strong>"+
+  "｜個股缺交易日 "+(n.gap||0)+" 檔；行情落後 "+(n.stale||0)+" 檔；K線不足 "+((n.short||0)+(n.market_short||0))+" 檔；無有效K線 "+(n.no_history||0)+" 檔。"+
+  "<div>上市完整 "+(listed.ready||0)+" 檔／上櫃完整 "+(otc.ready||0)+" 檔。缺日K 的股票會顯示最後有效價格與參考指標（若已有足夠K線），但<strong>不會列為已確認的買進訊號</strong>。資料補抓會依官方來源逐步嘗試，零成交與停牌不會虛構K線。</div>";
+}
 const q=new URLSearchParams(location.search); if(q.get("mode")==="all")$("source").value="all";
 let report=null,vcps={},snapshot=null,availableWeeks=[],rows=[],visible=[];
 const requestedWeek=q.get("week");
@@ -107,7 +119,8 @@ async function load(){
   if(!availableWeeks.length)throw new Error("尚無完整的正式官方 D1 週快照，不能用案例資料替代");
   const preferredWeek=snapshot?.date||requestedWeek;
   weekOptions();
-  $("coveredCount").textContent=report.evaluatedStocks??"—";
+  $("coveredCount").textContent=report.coverage?.total ? (report.evaluatedStocks+" / "+report.coverage.total) : (report.evaluatedStocks??"—");
+  showCoverage();
   $("marketDates").textContent=(report.marketAsOf?.["上市"]||"待補")+"／"+(report.marketAsOf?.["上櫃"]||"待補");
   selectWeek(preferredWeek);
 
@@ -136,24 +149,28 @@ function apply(){
   if(query&&!r.code.includes(query)&&!String(r.name).toLowerCase().includes(query))return false;
   const mode=$("show").value;
   if(mode==="pass"&&!qualify(r))return false;
+  if(mode==="ready"&&r.dataQuality!=="ready"&&["資料不足","行情落後"].includes(r.status))return false;
   if(mode==="missing"&&!["資料不足","行情落後"].includes(r.status))return false;
   return true;
  }).sort((a,b)=>Number(qualify(b))-Number(qualify(a))||(a.holder?.tier==="D1+"?-1:0)-(b.holder?.tier==="D1+"?-1:0)||a.code.localeCompare(b.code));
  $("passedCount").textContent=rows.filter(r=>($("source").value==="all"||r.holder&&($("source").value!=="d1plus"||r.holder.tier==="D1+"))&&qualify(r)).length.toLocaleString("zh-TW");
- $("shown").textContent="目前顯示 "+visible.length+" 檔；技術訊號不代表保證獲利，請先做樣本外回測。";
+ $("shown").textContent=($("show").value==="missing"?"注意：目前刻意只顯示「資料不足／落後」股票。":"")+"目前顯示 "+visible.length+" 檔；缺日K的參考數值不得作為已確認訊號，請先做樣本外回測。";
  const out=visible.slice(0,1200).map(r=>{
   const ok=qualify(r),miss=["資料不足","行情落後"].includes(r.status);
   const vol=$("volume").value,macd=$("macd").value;
-  const note=miss?r.status:ok?"三條件同時成立":"尚未符合";
+  const note=miss?(qualityName[r.dataQuality]||r.status):ok?"三條件同時成立":"尚未符合";
+  const caution=miss&&r.referenceOnly?"（參考）":"";
+  const explanation=miss?("<small class='warning-detail'>"+esc(r.reason||"官方日K資料未齊")+
+    "；目前累積 "+fmt(r.bars,0)+" 根有效K線"+(r.referenceOnly?"；技術數值僅供參考，不列入正式訊號":"")+"</small>"):"";
   return "<tr><td><b>"+esc(r.code)+" "+esc(r.name)+"</b><small>"+esc(r.market)+"</small></td>"+
    "<td>"+fmt(r.close)+"<small>"+esc(r.date||"缺日K")+"</small></td>"+
    "<td><span class='tag'>"+esc(r.holder?.tier||"—")+"</span><small>"+fmt(r.holder?.delta)+" pp</small></td>"+
-   "<td class='"+((macd==="today"?r.macdFlipToday:r.macdFlip3)?"good":"")+"'>"+(r.macdFlipToday?"今日翻正":r.macdFlip3?"近3日翻正":"未翻正")+"<small>OSC "+fmt(r.macdOsc,4)+"</small></td>"+
-   "<td>"+fmt(r.bbBandwidthPct)+"%<small>"+(r.bbStrict?"雙向張開":r.bbWiden?"帶寬增加":"未擴張")+"</small></td>"+
+   "<td class='"+((macd==="today"?r.macdFlipToday:r.macdFlip3)?"good":"")+"'>"+(!valid(r.macdOsc)?"無法計算":r.macdFlipToday?"今日翻正":r.macdFlip3?"近3日翻正":"未翻正")+caution+"<small>OSC "+fmt(r.macdOsc,4)+"</small></td>"+
+   "<td>"+fmt(r.bbBandwidthPct)+"%<small>"+(!valid(r.bbBandwidthPct)?"無法計算":r.bbStrict?"雙向張開":r.bbWiden?"帶寬增加":"未擴張")+"</small></td>"+
    "<td>"+fmt(r.ma20)+"<small>"+fmt(r.distMA20Pct)+"%</small></td>"+
    "<td>"+fmt(r.volumeLots,0)+" 張</td>"+
    "<td>"+esc(r.vcp)+"</td>"+
-   "<td><span class='tag "+(ok?"on":"")+"'>"+note+"</span>"+(r.belowMA20ThreeDays?"<small class='bad'>已連3日收盤跌破MA20</small>":"")+"</td></tr>";
+   "<td><span class='tag "+(ok?"on":"")+"'>"+note+"</span>"+(r.belowMA20ThreeDays?"<small class='bad'>已連3日收盤跌破MA20</small>":"")+explanation+"</td></tr>";
  });
  $("results").innerHTML=out.join("")||'<tr><td colspan="9">沒有符合目前篩選的股票；可切換「顯示全部」檢查未通過原因。</td></tr>';
 }
@@ -168,8 +185,8 @@ $("week").addEventListener("change",()=>{if(report)selectWeek($("week").value);}
 $("latestWeek").addEventListener("click",()=>{if(report)selectWeek(availableWeeks[0]?.date);});
 $("reload").addEventListener("click",load);
 $("export").addEventListener("click",()=>{
- const cols=["技術日期","D1週別","股票代號","名稱","市場","D1分級","大戶周變化pp","MACD當日翻正","MACD近3日翻正","布林雙向擴張","帶寬增加","MA20","距MA20%","成交量張","VCP狀態","符合當前篩選","連3日跌破MA20"];
- const csv=[cols,...visible.map(r=>[r.date||"",snapshot?.date||"",r.code,r.name,r.market,r.holder?.tier||"",r.holder?.delta??"",r.macdFlipToday??"",r.macdFlip3??"",r.bbStrict??"",r.bbWiden??"",r.ma20??"",r.distMA20Pct??"",r.volumeLots??"",r.vcp,qualify(r),r.belowMA20ThreeDays??""])]
+ const cols=["技術日期","D1週別","股票代號","名稱","市場","D1分級","大戶周變化pp","MACD當日翻正","MACD近3日翻正","布林雙向擴張","帶寬增加","MA20","距MA20%","成交量張","VCP狀態","符合當前篩選","連3日跌破MA20","有效日K根數","資料完整性","缺漏說明","最近80市場交易日缺幾根","參考數值不可作為訊號"];
+ const csv=[cols,...visible.map(r=>[r.date||"",snapshot?.date||"",r.code,r.name,r.market,r.holder?.tier||"",r.holder?.delta??"",r.macdFlipToday??"",r.macdFlip3??"",r.bbStrict??"",r.bbWiden??"",r.ma20??"",r.distMA20Pct??"",r.volumeLots??"",r.vcp,qualify(r),r.belowMA20ThreeDays??"",r.bars??"",qualityName[r.dataQuality]||r.status,r.reason||"",r.missingSessionCount??"",r.referenceOnly===true])]
  .map(row=>row.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(",")).join("\r\n");
  const url=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="D1_動能雷達_籌碼週_"+(snapshot?.date||"資料待補")+".csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
 });
