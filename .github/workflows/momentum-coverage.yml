@@ -6,6 +6,7 @@ on:
       - 'scripts/momentum_daily.py'
       - 'scripts/vcp_daily.py'
       - 'tests/test_momentum.py'
+      - 'tests/test_momentum_coverage.py'
       - 'tests/test_vcp.py'
       - '.github/workflows/momentum-coverage.yml'
   workflow_dispatch:
@@ -24,4 +25,5 @@ jobs:
       - name: Run scanner and collector tests
         run: |
           python -m unittest discover -s tests -p 'test_momentum.py' -v
+          python -m unittest discover -s tests -p 'test_momentum_coverage.py' -v
           python -m unittest discover -s tests -p 'test_vcp.py' -v
