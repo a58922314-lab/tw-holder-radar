@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/refresh.py'
       - 'scripts/vcp_daily.py'
+      - 'scripts/momentum_coverage.py'
+      - 'tests/test_momentum_coverage.py'
       - 'rules/momentum-week.js'
       - 'tests/momentum-week.test.cjs'
       - 'rules/vcp-integration.js'
@@ -88,6 +90,7 @@ jobs:
           node --check /tmp/vcp-radar.js
           python -m unittest discover -s tests -p 'test_vcp.py' -v
           python -m unittest discover -s tests -p 'test_momentum.py' -v
+          python -m unittest discover -s tests -p 'test_momentum_coverage.py' -v
           node --check rules/vcp-integration.js
           node --test tests/vcp-integration.test.cjs
           node --check rules/d1-history.js
