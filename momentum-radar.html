@@ -165,8 +165,8 @@ function apply(){
   return "<tr><td><b>"+esc(r.code)+" "+esc(r.name)+"</b><small>"+esc(r.market)+"</small></td>"+
    "<td>"+fmt(r.close)+"<small>"+esc(r.date||"缺日K")+"</small></td>"+
    "<td><span class='tag'>"+esc(r.holder?.tier||"—")+"</span><small>"+fmt(r.holder?.delta)+" pp</small></td>"+
-   "<td class='"+((macd==="today"?r.macdFlipToday:r.macdFlip3)?"good":"")+"'>"+(r.macdFlipToday?"今日翻正":r.macdFlip3?"近3日翻正":"未翻正")+caution+"<small>OSC "+fmt(r.macdOsc,4)+"</small></td>"+
-   "<td>"+fmt(r.bbBandwidthPct)+"%<small>"+(r.bbStrict?"雙向張開":r.bbWiden?"帶寬增加":"未擴張")+"</small></td>"+
+   "<td class='"+((macd==="today"?r.macdFlipToday:r.macdFlip3)?"good":"")+"'>"+(!valid(r.macdOsc)?"無法計算":r.macdFlipToday?"今日翻正":r.macdFlip3?"近3日翻正":"未翻正")+caution+"<small>OSC "+fmt(r.macdOsc,4)+"</small></td>"+
+   "<td>"+fmt(r.bbBandwidthPct)+"%<small>"+(!valid(r.bbBandwidthPct)?"無法計算":r.bbStrict?"雙向張開":r.bbWiden?"帶寬增加":"未擴張")+"</small></td>"+
    "<td>"+fmt(r.ma20)+"<small>"+fmt(r.distMA20Pct)+"%</small></td>"+
    "<td>"+fmt(r.volumeLots,0)+" 張</td>"+
    "<td>"+esc(r.vcp)+"</td>"+
