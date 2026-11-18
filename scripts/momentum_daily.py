@@ -146,6 +146,9 @@ def build(days, roster, market_as_of=None):
             kind = "gap"
             reason = (f"最近{MIN_BARS}個市場交易日缺少 {len(missing)} 日有效日K；"
                       f"例：{', '.join(missing[:3])}。可能零成交、停牌或官方報表漏列")
+        elif result.get("status") == "資料不足":
+            kind = "invalid"
+            reason = result.get("reason") or "個股OHLCV欄位無效，無法可靠計算技術指標"
         # Individual latest traded bars can still show exploratory indicators.
         # However *any* missing market session removes the pass flag.
         if kind != "ready":
