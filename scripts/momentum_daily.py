@@ -105,8 +105,9 @@ def build(days, roster, market_as_of=None):
                 1 for code in days[day] if code in roster and roster[code].get("market") == market
             ) >= 200]
             market_as_of[market] = dates[-1] if dates else None
-    # Missing individual trading sessions are not silently bridged. Indicators
-    # cannot use 79 observed sessions spread over 80+ market sessions as 80 bars.
+    # Report why an active stock is missing from the full-confidence screen.
+    # A market-day gap may be no trade/suspension OR an incomplete upstream
+    # capture: DO NOT substitute yesterday's close or certify its signal.
     market_sessions = {}
     for market in ("上市", "上櫃"):
         market_sessions[market] = [
@@ -116,29 +117,71 @@ def build(days, roster, market_as_of=None):
             ) >= 200
         ]
     checks = {}
+    by_type = defaultdict(int)
+    by_market = defaultdict(lambda: defaultdict(int))
     for code, info in roster.items():
         market = info.get("market", "")
         stock_bars = series.get(code, [])
         result = assess(stock_bars)
-        observed = [bar[0] for bar in stock_bars[-MIN_BARS:]]
         expected = market_sessions.get(market, [])[-MIN_BARS:]
-        if len(expected) >= MIN_BARS and len(observed) >= MIN_BARS and observed != expected:
-            result = {"status": "資料不足", "bars": len(stock_bars),
-                      "reason": "最近80個市場交易日有個股日K缺漏"}
+        available = {bar[0] for bar in stock_bars}
+        missing = [date for date in expected if date not in available]
+        market_date = market_as_of.get(market)
+        last = stock_bars[-1] if stock_bars else None
+        kind = "ready"
+        reason = None
+        if not last:
+            kind = "no_history"
+            reason = "沒有取得任何官方有效日K（可能停牌、零成交或資料來源未包含）"
+        elif market_date and last[0] != market_date:
+            kind = "stale"
+            reason = f"最新個股成交K線 {last[0]}，市場盤後行情 {market_date}"
+        elif len(expected) < MIN_BARS:
+            kind = "market_short"
+            reason = f"市場歷史盤後資料僅 {len(expected)}/{MIN_BARS} 個交易日"
+        elif len(stock_bars) < MIN_BARS:
+            kind = "short"
+            reason = f"有效日K只有 {len(stock_bars)}/{MIN_BARS} 根（可能新上市、停牌或成交資料缺漏）"
+        elif missing:
+            kind = "gap"
+            reason = (f"最近{MIN_BARS}個市場交易日缺少 {len(missing)} 日有效日K；"
+                      f"例：{', '.join(missing[:3])}。可能零成交、停牌或官方報表漏列")
+        # Individual latest traded bars can still show exploratory indicators.
+        # However *any* missing market session removes the pass flag.
+        if kind != "ready":
+            result["status"] = "行情落後" if kind == "stale" else "資料不足"
+            result["passOriginal"] = False
+            result["passRecent3"] = False
+            result["referenceOnly"] = True
+            if last:
+                result.setdefault("date", last[0])
+                result.setdefault("close", round(last[4], 4))
+                result.setdefault("volumeLots", round(last[5], 2))
+        result["dataQuality"] = kind
+        result["reason"] = reason
+        result["lastQuoteDate"] = last[0] if last else None
+        result["missingSessionCount"] = len(missing)
+        result["missingDatesSample"] = missing[:5]
+        result["availableMarketSessions"] = len(expected) - len(missing)
         result["name"] = info.get("name", "")
         result["market"] = market
-        if result.get("date") and result["date"] != market_as_of.get(result["market"]):
-            result["status"] = "行情落後"
-            result["passOriginal"] = result["passRecent3"] = False
         checks[code] = result
+        by_type[kind] += 1
+        by_market[market][kind] += 1
     return {
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "marketAsOf": market_as_of, "minBars": MIN_BARS,
         "model": "WCL(H+L+2C)/4 MACD(12,26,9); Bollinger(20,2); SMA20; 500張",
-        "limitations": "未還原除權息；僅盤後訊號非成交價；均線/EMA起始值可能與XQ略異；不代表歷史回測",
-        "evaluatedStocks": sum(a["status"] not in ("資料不足", "行情落後") for a in checks.values()),
+        "limitations": "未還原除權息；缺日K僅顯示參考數值、不提供確認訊號；均線/EMA起始值可能與XQ略異；不代表歷史回測",
+        "evaluatedStocks": by_type["ready"],
         "originalSignals": sum(a.get("passOriginal", False) for a in checks.values()),
         "recent3Signals": sum(a.get("passRecent3", False) for a in checks.values()),
+        "coverage": {
+            "total": len(roster),
+            "ready": by_type["ready"],
+            "byReason": dict(by_type),
+            "byMarket": {m: dict(v) for m, v in by_market.items()}
+        },
         "assessments": checks
     }
 
