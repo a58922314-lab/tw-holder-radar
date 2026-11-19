@@ -209,6 +209,54 @@ def simulate(bars, by_calendar, ticker):
     return results, open_positions, signal_count, opened
 
 
+def simulate_fixed_horizon(bars, by_calendar, ticker, hold_sessions=5):
+    """Independent sensitivity check: hold exactly N market sessions.
+
+    This study does NOT use the MA20 exit rule. It avoids the bias of counting
+    only early exits while profitable positions remain open near sample end.
+    A future price is read solely for scoring a completed trade, never to
+    decide whether a historical signal qualifies.
+    """
+    results = {v: [] for v in VARIANTS}
+    censored = Counter()
+    entries = Counter()
+    next_entry_allowed = {v: 79 for v in VARIANTS}
+    for i in range(79, len(bars)-1):
+        week = by_calendar.get(bars[i][0])
+        if not week:
+            continue
+        if all(i < next_entry_allowed[v] for v in VARIANTS):
+            continue
+        signal = assess(bars[:i+1])
+        if not signal.get("passRecent3"):
+            continue
+        known_tier = week["tiers"].get(ticker)
+        for variant in VARIANTS:
+            if i < next_entry_allowed[variant]:
+                continue
+            if variant == "C" and not known_tier:
+                continue
+            if variant == "Cplus" and known_tier != "D1+":
+                continue
+            entries[variant] += 1
+            # Entry open is next market session; exit is after N sessions.
+            buy_index = i+1
+            sell_index = buy_index+hold_sessions
+            if sell_index >= len(bars):
+                censored[variant] += 1
+                next_entry_allowed[variant] = len(bars)+1
+                continue
+            results[variant].append({
+                "code":ticker, "entry":bars[buy_index][0],
+                "exit":bars[sell_index][0],
+                "holderWeek":week["date"].isoformat() if variant != "B" else None,
+                "netReturnPct":round(net_return(bars[buy_index][1],
+                                                bars[sell_index][1]),6),
+            })
+            next_entry_allowed[variant] = sell_index
+    return results, censored, entries
+
+
 def compare(days, roster, snapshots):
     windows = make_windows(snapshots)
     by_calendar = calendar_index(windows)
@@ -239,6 +287,33 @@ def compare(days, roster, snapshots):
                 all_open[v] += opened[v]
                 entries[v] += taken[v]
             signals.update(signs)
+    fixed_studies = {}
+    for horizon in (5, 10):
+        fixed_trades = {v: [] for v in VARIANTS}
+        fixed_open = Counter()
+        fixed_entries = Counter()
+        for code, meta in roster.items():
+            market = meta.get("market")
+            if market not in sessions_by_market:
+                continue
+            for bars in contiguous_runs(days, sessions_by_market[market], code):
+                if len(bars) < 81 or (
+                    bars[-1][0] < (relevant_days[0] if relevant_days else "9999")
+                ):
+                    continue
+                trades, opened, taken = simulate_fixed_horizon(
+                    bars, by_calendar, code, hold_sessions=horizon
+                )
+                for v in VARIANTS:
+                    fixed_trades[v].extend(trades[v])
+                    fixed_open[v] += opened[v]
+                    fixed_entries[v] += taken[v]
+        fixed_studies[str(horizon)] = {
+            "holdingSessions":horizon,
+            "method":"收盤B/C訊號、隔日開盤進、再持有固定交易日後開盤出場",
+            "variants":{v:summary(fixed_trades[v],fixed_open[v],fixed_entries[v])
+                        for v in VARIANTS}
+        }
     # Completion is measured with all historical available bars after entry;
     # positions still open at end are excluded from win rate, not treated as wins.
     stats = {v: {**summary(all_trades[v], all_open[v], entries[v]),
@@ -261,6 +336,7 @@ def compare(days, roster, snapshots):
         "eligibleSeries":eligible_series,
         "signals":dict(signals),
         "variants":stats,
+        "fixedHoldingStudies":fixed_studies,
         "comparison":{"B_minus_C_winRatePp":round(stats["B"]["winRatePct"]-stats["C"]["winRatePct"],2)
                  if stats["B"]["winRatePct"] is not None and stats["C"]["winRatePct"] is not None else None,
                  "C_minus_B_profitFactor":round(stats["C"]["profitFactor"]-stats["B"]["profitFactor"],3)
@@ -293,6 +369,12 @@ def main():
         print(v,"entries",s["entrySignals"],"closed",s["closedTrades"],
               "open",s["openTradesExcluded"],"wins",s["winRatePct"],
               "avg",s["avgNetReturnPct"],"PF",s["profitFactor"])
+    for horizon,study in result["fixedHoldingStudies"].items():
+        print("Fixed holding horizon",horizon,"sessions")
+        for v,st in study["variants"].items():
+            print("  ",v,"entries",st["entrySignals"],"completed",st["closedTrades"],
+                  "excluded",st["openTradesExcluded"],"winRate",st["winRatePct"],
+                  "avg",st["avgNetReturnPct"],"PF",st["profitFactor"])
     if result["variants"]["C"]["closedTrades"] < 50:
         print("WARNING: C has fewer than 50 closed trades; no reliable win-rate claim.")
 
