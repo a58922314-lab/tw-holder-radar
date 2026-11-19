@@ -1,0 +1,32 @@
+name: Weekly D1 x Momentum C research
+on:
+  pull_request:
+    paths:
+      - 'scripts/momentum_c_backtest.py'
+      - 'tests/test_momentum_c_backtest.py'
+      - '.github/workflows/momentum-c-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate date availability rules and D1 tiers
+        run: python -m unittest discover -s tests -p 'test_momentum_c_backtest.py' -v
+      - name: Compare B and historical D1 C over the same eligible market sessions
+        run: python scripts/momentum_c_backtest.py
+      - name: Check report structure
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('data/momentum_c_backtest_exploratory.json',encoding='utf8'))
+          assert {'B','C','Cplus'} <= r['variants'].keys()
+          assert r['variants']['C']['entrySignals'] <= r['variants']['B']['entrySignals']
+          assert r['variants']['Cplus']['entrySignals'] <= r['variants']['C']['entrySignals']
+          print('Historical C data quality:',r['weeklySnapshotsUsed'],'snapshots',r['marketActiveSessions'],'eligible sessions')
+          PY
