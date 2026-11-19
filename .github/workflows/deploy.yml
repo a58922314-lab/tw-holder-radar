@@ -9,6 +9,8 @@ on:
       - 'rules/momentum-week.js'
       - 'tests/momentum-week.test.cjs'
       - 'scripts/momentum_daily.py'
+      - 'scripts/momentum_c_backtest.py'
+      - 'tests/test_momentum_c_backtest.py'
       - 'tests/test_momentum.py'
       - 'rules/vcp-integration.js'
       - 'tests/vcp-integration.test.cjs'
@@ -58,6 +60,7 @@ jobs:
           node --check /tmp/vcp-radar.js
           python -m unittest discover -s tests -p 'test_vcp.py' -v
           python -m unittest discover -s tests -p 'test_momentum.py' -v
+          python -m unittest discover -s tests -p 'test_momentum_c_backtest.py' -v
           python -m unittest discover -s tests -p 'test_momentum_coverage.py' -v
           node --check rules/vcp-integration.js
           node --test tests/vcp-integration.test.cjs
@@ -79,6 +82,8 @@ jobs:
           cp momentum-radar.html _site/momentum-radar.html
           python scripts/momentum_daily.py
           cp data/momentum_signals.json _site/data/momentum_signals.json
+          python scripts/momentum_c_backtest.py
+          cp data/momentum_c_backtest_exploratory.json _site/data/momentum_c_backtest_exploratory.json
           mkdir -p _site/rules
           cp rules/d1-screening.js _site/rules/d1-screening.js
           cp rules/d1-history.js _site/rules/d1-history.js

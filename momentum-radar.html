@@ -43,6 +43,11 @@ a{color:var(--gold)}.wrap{max-width:1480px;margin:auto;padding:28px 24px 70px}.h
 <div class="tablearea"><table><thead><tr><th>股票</th><th>盤後收盤<br>技術日期</th><th>所選週 D1 分級<br>大戶週Δ</th><th>MACD 翻正</th><th>布林通道<br>帶寬%</th><th>MA20<br>距離%</th><th>成交量</th><th>VCP 現況</th><th>本次條件／出場警示</th></tr></thead>
 <tbody id="results"><tr><td colspan="9">載入中…</td></tr></tbody></table></div>
 <p id="shown" class="note"></p></section>
+<section class="panel" id="bcResearch">
+<h3 style="margin:0 0 5px">研究附錄｜B 純技術 vs C 加入歷史 D1 籌碼</h3>
+<p class="note">獨立歷史研究，與上方目前選取的 D1 週別無關。為避免把未公布的集保資料提前使用，假設每週 D1 名單在基準日後 7 個日曆日才可用；這不是已驗證的實際公布時間。B/C 使用相同有效交易日期與成本，結果僅供研究，不是交易建議。</p>
+<div id="bcResearchReport" class="note">載入歷史 B／C 比較結果中…</div>
+</section>
 <section class="panel"><strong>研究資料的限制</strong><p class="note">技術指標取自官方 TWSE／TPEx 每日 OHLCV，可能尚未回補完整80根日K；MACD 使用加權收盤價 (H+L+2C)/4，EMA 初始種子與 XQ 可能有微幅差異。股價未還原除權息。D1 依使用者所選的正式官方週快照套用原本規則，週別與最新日K日期可能不同。歷史 D1 名單只用於追蹤這些股票的當前技術狀態；絕不將當前技術數據或最新籌碼倒填成歷史週的買進訊號。這是每日盤後觀察名單，<strong>尚不是已驗證回測績效或下單指令</strong>。</p></section>
 <footer class="footer">資料由現有 GitHub Actions 更新。按「更新畫面」僅重新讀取已發布資料，不會立即向交易所抓取行情。</footer>
 </main>
@@ -183,7 +188,40 @@ $("source").addEventListener("change",()=>{
 });
 $("week").addEventListener("change",()=>{if(report)selectWeek($("week").value);});
 $("latestWeek").addEventListener("click",()=>{if(report)selectWeek(availableWeeks[0]?.date);});
-$("reload").addEventListener("click",load);
+async function loadComparison(){
+ const pane=$("bcResearchReport");
+ try{
+  const response=await fetch("./data/momentum_c_backtest_exploratory.json?t="+Date.now(),{cache:"no-store"});
+  if(!response.ok)throw new Error("歷史比較報告尚未發布");
+  const research=await response.json();
+  const p=(s,k)=>s&&Number.isFinite(s[k])?s[k].toFixed(k==="profitFactor"?3:2):"—";
+  const variants=[["B","純技術 B"],["C","B＋D1／D1+"],["Cplus","B＋僅D1+"]];
+  const table=(block,title)=>{
+   const arr=variants.map(([key,label])=>{
+    const st=block.variants?.[key]||{};
+    const enough=(st.closedTrades||0)>=50;
+    const rate=enough?p(st,"winRatePct")+"%":"—（不足50筆）";
+    return "<tr><td>"+label+"</td><td>"+(st.entrySignals??"—")+"</td><td>"+(st.closedTrades??"—")+"</td><td>"+(st.openTradesExcluded??"—")+"</td><td>"+rate+"</td><td>"+(st.closedTrades?p(st,"avgNetReturnPct")+"%":"—")+"</td><td>"+(st.closedTrades?p(st,"profitFactor"):"—")+"</td></tr>";
+   }).join("");
+   return "<h4 style='margin:16px 0 8px'>"+title+"</h4><div class='tablearea'><table style='min-width:840px'><thead><tr><th>版本</th><th>進場筆數</th><th>完成出場</th><th>未完成／排除</th><th>勝率</th><th>平均單筆淨報酬</th><th>獲利因子</th></tr></thead><tbody>"+arr+"</tbody></table></div>";
+  };
+  const closed=research.variants?.C?.closedTrades||0;
+  let html="<p class='hint' style='line-height:1.8'>有效週籌碼快照 <b>"+(research.weeklySnapshotsUsed??"—")+
+     "</b> 期；相同交易日期 <b>"+(research.marketActiveSessions??"—")+
+     "</b> 日；B 與 D1 重疊技術訊號 <b>"+(research.signals?.technical_and_d1??0)+
+     "</b> 筆。"+(closed<50?"<strong>目前 C 已平倉不到50筆，不能判定籌碼條件是否提高勝率。</strong>":"")+"</p>";
+  html+=table(research,"原始 MA20 出場：連三日收盤跌破20MA、隔日開盤出");
+  for(const h of ["5","10"]){
+   const v=research.fixedHoldingStudies?.[h];
+   if(v)html+=table(v,"固定持有 "+h+" 個交易日（另外的對照測試）");
+  }
+  html+="<p class='note'>技術訊號於收盤確認、隔日開盤進場。含滑價、手續費與證交稅；股價未還原除權息、只含目前仍上市櫃的股票，且歷史籌碼公布時間沒有精確紀錄。已完成交易筆數小於50時隱藏勝率，以免將少數樣本當成可信機率。最後計算："+esc(research.generatedAt||"未標註")+"</p>";
+  pane.innerHTML=html;
+ }catch(e){
+  pane.textContent="歷史比較暫未產生可驗證結果："+e.message+"。不會以空白資料假造勝率。";
+ }
+}
+$("reload").addEventListener("click",()=>{load();loadComparison();});
 $("export").addEventListener("click",()=>{
  const cols=["技術日期","D1週別","股票代號","名稱","市場","D1分級","大戶周變化pp","MACD當日翻正","MACD近3日翻正","布林雙向擴張","帶寬增加","MA20","距MA20%","成交量張","VCP狀態","符合當前篩選","連3日跌破MA20","有效日K根數","資料完整性","缺漏說明","最近80市場交易日缺幾根","參考數值不可作為訊號"];
  const csv=[cols,...visible.map(r=>[r.date||"",snapshot?.date||"",r.code,r.name,r.market,r.holder?.tier||"",r.holder?.delta??"",r.macdFlipToday??"",r.macdFlip3??"",r.bbStrict??"",r.bbWiden??"",r.ma20??"",r.distMA20Pct??"",r.volumeLots??"",r.vcp,qualify(r),r.belowMA20ThreeDays??"",r.bars??"",qualityName[r.dataQuality]||r.status,r.reason||"",r.missingSessionCount??"",r.referenceOnly===true])]
@@ -191,4 +229,5 @@ $("export").addEventListener("click",()=>{
  const url=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="D1_動能雷達_籌碼週_"+(snapshot?.date||"資料待補")+".csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),500);
 });
 load();
+loadComparison();
 </script></body></html>
