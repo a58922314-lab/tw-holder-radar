@@ -81,6 +81,28 @@ class D1MomentumCBacktestTests(unittest.TestCase):
         # The signal falls before the assumed publication date.
         self.assertEqual(entries["B"],0)
 
+    def test_fixed_horizon_excludes_unknown_future_close(self):
+        bars=candles(100)
+        event=bars[91][0]
+        day=date.fromisoformat(event)
+        index={event: {"date":day,"tiers":{"6257":"D1"}}}
+        results,missing,entered=c.simulate_fixed_horizon(bars,index,"6257",hold_sessions=10)
+        self.assertEqual(entered["C"],1)
+        self.assertEqual(entered["B"],1)
+        self.assertEqual(missing["C"],1)
+        self.assertEqual(results["C"],[])
+
+    def test_fixed_horizon_sells_only_after_prespecified_holding(self):
+        bars=candles(110)
+        event=bars[91][0]
+        day=date.fromisoformat(event)
+        index={event: {"date":day,"tiers":{"6257":"D1"}}}
+        results,missing,entered=c.simulate_fixed_horizon(bars,index,"6257",hold_sessions=5)
+        self.assertEqual(missing["C"],0)
+        self.assertEqual(entered["C"],1)
+        self.assertEqual(results["C"][0]["entry"],bars[92][0])
+        self.assertEqual(results["C"][0]["exit"],bars[97][0])
+
     def test_net_costs_deducted(self):
         result=c.net_return(100,100)
         self.assertLess(result,0)
