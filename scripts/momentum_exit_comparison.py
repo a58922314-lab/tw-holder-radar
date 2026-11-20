@@ -273,7 +273,7 @@ def simulate_portfolio(cohorts, days, variant, capital=INITIAL_CAPITAL,
             ex=c["variants"][variant]
             if ex["exitReason"]=="stop_intraday" or n not in positions:
                 continue
-            qty=positions.pop(n)
+            qty=positions.pop(n)[0]
             cash+=qty*ex["exitRaw"]*(1-EXIT_SLIPPAGE)*(1-COMMISSION-SELL_TAX)
         # Value existing positions at today's opening quotes when available.
         opening_equity=cash
