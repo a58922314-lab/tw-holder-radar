@@ -1,0 +1,48 @@
+name: Compare MA20, fixed and ATR exit research
+on:
+  pull_request:
+    paths:
+      - 'scripts/momentum_exit_comparison.py'
+      - 'tests/test_momentum_exit_comparison.py'
+      - '.github/workflows/momentum-exit-tests.yml'
+      - 'momentum-radar.html'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  exit-study:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate stop fills, ATR timing and capital model
+        run: python -m unittest discover -s tests -p 'test_momentum_exit_comparison.py' -v
+      - name: Validate momentum radar inline JavaScript
+        run: |
+          python -c 'import pathlib,re; s=pathlib.Path("momentum-radar.html").read_text(); parts=re.findall(r"<script>(.*?)</script>",s,re.S); assert parts; pathlib.Path("/tmp/exit-panel.js").write_text(parts[-1])'
+          node --check /tmp/exit-panel.js
+      - name: Recalculate three exit styles on official saved daily candles
+        run: python scripts/momentum_exit_comparison.py
+      - name: Assert exit variants share entries and drawdown is bounded
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('data/momentum_exit_comparison.json',encoding='utf8'))
+          assert set(r['results'])=={'MA20','FIXED5','ATR2'}
+          n=r['data']['sameEntryCohortsAccepted']
+          assert n>0, "No market data or entry signals"
+          for version,s in r['results'].items():
+            assert s['entryCohorts']==n, (version,n,s)
+            assert 0 <= s['portfolio']['maxDrawdownPct'] <= 100, version
+            assert s['portfolio']['minCash'] >= -1, version
+            assert s['closedTrades']+s['stillOpen']==n
+          print("Common entries:",n,"same for each of the 3 variants")
+          PY
+      - name: Save study report
+        uses: actions/upload-artifact@v4
+        with:
+          name: momentum-exit-comparison
+          path: data/momentum_exit_comparison.json
+          retention-days: 30
