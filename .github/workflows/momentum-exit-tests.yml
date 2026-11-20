@@ -19,6 +19,10 @@ jobs:
           python-version: '3.12'
       - name: Validate stop fills, ATR timing and capital model
         run: python -m unittest discover -s tests -p 'test_momentum_exit_comparison.py' -v
+      - name: Validate momentum radar inline JavaScript
+        run: |
+          python -c 'import pathlib,re; s=pathlib.Path("momentum-radar.html").read_text(); parts=re.findall(r"<script>(.*?)</script>",s,re.S); assert parts; pathlib.Path("/tmp/exit-panel.js").write_text(parts[-1])'
+          node --check /tmp/exit-panel.js
       - name: Recalculate three exit styles on official saved daily candles
         run: python scripts/momentum_exit_comparison.py
       - name: Assert exit variants share entries and drawdown is bounded
