@@ -90,6 +90,21 @@ class ExitStudyTests(unittest.TestCase):
         self.assertGreater(result["maxDrawdownPct"],0)
         self.assertGreaterEqual(result["minCash"],-0.01)
         self.assertEqual(result["openPositions"],0)
+        self.assertGreater(result["equityReturnPct"],-10)
+        self.assertLess(result["equityReturnPct"],0)
+        self.assertLess(result["maxDrawdownPct"],10)
+
+    def test_unrealized_close_uses_close_not_volume(self):
+        b=bars([100]*81+[90,90])
+        item={"code":"3001","entryDate":b[80][0],"entryRaw":100,
+              "variants":{"MA20":{"exitDate":None,"exitRaw":None,"exitReason":"unclosed"}}}
+        daymap={bar[0]:{"3001":bar[1:]} for bar in b}
+        result=ex.simulate_portfolio([item],daymap,"MA20",slots=2)
+        self.assertEqual(result["openPositions"],1)
+        self.assertLess(result["equityReturnPct"],0)
+        self.assertGreater(result["equityReturnPct"],-15)
+        self.assertGreater(result["maxDrawdownPct"],3)
+        self.assertLess(result["maxDrawdownPct"],15)
 
     def test_ma20_exit_on_gap_day_not_intraday_price(self):
         cls=[100]*81+[98,97,96,96]
