@@ -43,6 +43,11 @@ a{color:var(--gold)}.wrap{max-width:1480px;margin:auto;padding:28px 24px 70px}.h
 <div class="tablearea"><table><thead><tr><th>股票</th><th>盤後收盤<br>技術日期</th><th>所選週 D1 分級<br>大戶週Δ</th><th>MACD 翻正</th><th>布林通道<br>帶寬%</th><th>MA20<br>距離%</th><th>成交量</th><th>VCP 現況</th><th>本次條件／出場警示</th></tr></thead>
 <tbody id="results"><tr><td colspan="9">載入中…</td></tr></tbody></table></div>
 <p id="shown" class="note"></p></section>
+<section class="panel" id="exitResearch">
+<h3 style="margin:0 0 5px">出場策略回測｜相同進場比較三種賣出規則</h3>
+<p class="note">進場一律使用 MACD 近3日翻正＋嚴格布林擴張＋上揚 MA20＋至少500張。所有版本使用**同一批**進場交易；目前優先研究 ATR 版，但不預設它勝率最高。每日淨值含持倉浮動損益，以實際資金模型計算最大回撤。</p>
+<div id="exitResearchReport" class="note">載入出場策略的歷史回測中…</div>
+</section>
 <section class="panel" id="bcResearch">
 <h3 style="margin:0 0 5px">研究附錄｜B 純技術 vs C 加入歷史 D1 籌碼</h3>
 <p class="note">獨立歷史研究，與上方目前選取的 D1 週別無關。為避免把未公布的集保資料提前使用，假設每週 D1 名單在基準日後 7 個日曆日才可用；這不是已驗證的實際公布時間。B/C 使用相同有效交易日期與成本，結果僅供研究，不是交易建議。</p>
@@ -188,6 +193,49 @@ $("source").addEventListener("change",()=>{
 });
 $("week").addEventListener("change",()=>{if(report)selectWeek($("week").value);});
 $("latestWeek").addEventListener("click",()=>{if(report)selectWeek(availableWeeks[0]?.date);});
+async function loadExitStudy(){
+ const target=$("exitResearchReport");
+ const format=(x,n=2)=>typeof x==="number"&&Number.isFinite(x)?x.toFixed(n):"—";
+ try{
+  const response=await fetch("./data/momentum_exit_comparison.json?t="+Date.now(),{cache:"no-store"});
+  if(!response.ok)throw new Error("尚未發布三種出場回測資料");
+  const report=await response.json();
+  const variants=[
+   ["MA20","原始：MA20 三日出場"],
+   ["FIXED5","固定 -5%＋MA20"],
+   ["ATR2","2×ATR(14)＋MA20｜優先研究"]
+  ];
+  const start=report.data||{};
+  let table="<div class='tablearea'><table style='min-width:920px'><thead><tr><th>出場模式</th><th>共同進場</th><th>已平倉</th><th>未平倉</th><th>勝率</th><th>平均淨報酬</th><th>獲利因子</th><th>最大回撤（組合）</th><th>組合報酬</th></tr></thead><tbody>";
+  for(const [key,label] of variants){
+    const v=report.results?.[key]||{},p=v.portfolio||{};
+    table+="<tr><td"+(key==="ATR2"?" class='good'":"")+"><b>"+label+"</b></td>"+
+      "<td>"+(v.entryCohorts??"—")+"</td>"+
+      "<td>"+(v.closedTrades??"—")+"</td>"+
+      "<td>"+(v.stillOpen??"—")+"</td>"+
+      "<td>"+format(v.winRatePct)+"%</td>"+
+      "<td>"+format(v.averageNetReturnPct)+"%</td>"+
+      "<td>"+format(v.profitFactor,3)+"</td>"+
+      "<td>"+format(p.maxDrawdownPct)+"%</td>"+
+      "<td>"+format(p.equityReturnPct)+"%</td></tr>";
+  }
+  table+="</tbody></table></div>";
+  let html="<p class='hint'>官方日K共同進場 <b>"+(start.sameEntryCohortsAccepted??"—")+
+    "</b> 筆；最多同時持有 <b>"+(report.portfolioAssumptions?.maxSimultaneousPositions??"—")+
+    "</b> 檔；最早進場 "+esc(start.firstEntry||"—")+"，最晚進場 "+esc(start.lastEntry||"—")+
+    "。回測是探索性，不代表真實績效。</p>"+table;
+  html+="<p class='note'>最大回撤與組合報酬：假設起始資金100萬元、單檔配置當時組合資金約10%、不融資、含交易費用與持倉收盤估值。勝率與平均報酬只統計已平倉交易，未平倉另列。固定 -5% 與 ATR2 均是初始停損、並非移動停損；若跌破停損跳空，以較差開盤價模擬成交。實際跌停時可能無法成交，股價未還原除權息。ATR(14) 使用訊號日資料，不讀取隔日資訊。</p>";
+  const c=report.d1Subset;
+  if(c){
+   const n=c.data?.sameEntryCohortsAccepted??0;
+   html+="<p class='note'>D1／D1+ 同進場子樣本："+n+" 筆；歷史籌碼週別仍不足，尚不適合依其勝率挑選停損方法。</p>";
+  }
+  html+="<p class='note'>回測更新："+esc(report.generatedAt||"未知")+"</p>";
+  target.innerHTML=html;
+ }catch(err){
+  target.textContent="三種出場研究暫無可驗證報告："+err.message+"。不顯示假設勝率。";
+ }
+}
 async function loadComparison(){
  const pane=$("bcResearchReport");
  try{
@@ -221,7 +269,7 @@ async function loadComparison(){
   pane.textContent="歷史比較暫未產生可驗證結果："+e.message+"。不會以空白資料假造勝率。";
  }
 }
-$("reload").addEventListener("click",()=>{load();loadComparison();});
+$("reload").addEventListener("click",()=>{load();loadComparison();loadExitStudy();});
 $("export").addEventListener("click",()=>{
  const cols=["技術日期","D1週別","股票代號","名稱","市場","D1分級","大戶周變化pp","MACD當日翻正","MACD近3日翻正","布林雙向擴張","帶寬增加","MA20","距MA20%","成交量張","VCP狀態","符合當前篩選","連3日跌破MA20","有效日K根數","資料完整性","缺漏說明","最近80市場交易日缺幾根","參考數值不可作為訊號"];
  const csv=[cols,...visible.map(r=>[r.date||"",snapshot?.date||"",r.code,r.name,r.market,r.holder?.tier||"",r.holder?.delta??"",r.macdFlipToday??"",r.macdFlip3??"",r.bbStrict??"",r.bbWiden??"",r.ma20??"",r.distMA20Pct??"",r.volumeLots??"",r.vcp,qualify(r),r.belowMA20ThreeDays??"",r.bars??"",qualityName[r.dataQuality]||r.status,r.reason||"",r.missingSessionCount??"",r.referenceOnly===true])]
@@ -230,4 +278,5 @@ $("export").addEventListener("click",()=>{
 });
 load();
 loadComparison();
+loadExitStudy();
 </script></body></html>
