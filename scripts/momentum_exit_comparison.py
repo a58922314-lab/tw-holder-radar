@@ -266,7 +266,7 @@ def simulate_portfolio(cohorts, days, variant, capital=INITIAL_CAPITAL,
     for day in dates:
         def current_price(code):
             candle=days[day].get(code)
-            return candle[4] if candle is not None else last_marks.get(code)
+            return candle[3] if candle is not None else last_marks.get(code)
         # Open exits execute before new opening buys; intraday stops do NOT
         # fund buys made earlier on the same day.
         for n,c in closes.get(day,[]):
