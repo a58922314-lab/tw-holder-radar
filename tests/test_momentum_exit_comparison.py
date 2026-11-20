@@ -60,6 +60,20 @@ class ExitStudyTests(unittest.TestCase):
         self.assertEqual(ma["exitRaw"],101)
         self.assertEqual(ma["exitReason"],"ma20_next_open")
 
+    def test_gap_and_queued_ma_exit_same_open_prioritizes_stop_gap(self):
+        closes=[100]*81+[97,96,95,89]
+        opens=[100]*84+[89]
+        lows=[99]*81+[96,95,94,88]
+        b=bars(closes,opens=opens,lows=lows)
+        # Only the day after 3 closes below MA20 is allowed to execute MA.
+        ma=ex.simulate_exit(b,80,"MA20",5)
+        self.assertEqual(ma["exitIndex"],84)
+        self.assertEqual(ma["exitRaw"],89)
+        atr=ex.simulate_exit(b,80,"ATR2",5)
+        self.assertEqual(atr["exitIndex"],84)
+        self.assertEqual(atr["exitRaw"],89)
+        self.assertEqual(atr["exitReason"],"stop_gap")
+
     def test_expenses_deducted_and_can_exceed_fixed_five_pct(self):
         self.assertLess(ex.net_trade_return(100,100),0)
         self.assertLess(ex.net_trade_return(100,94),-5)
