@@ -113,6 +113,12 @@ jobs:
         run: |
           mkdir -p _site/data
           cp index.html _site/index.html
+          cp us-bottom.html _site/us-bottom.html
+          if python scripts/us_bottom.py; then
+            cp data/us_bottom.json _site/data/us_bottom.json
+          else
+            echo 'US market source unavailable; page will mark data missing.'
+          fi
           cp vcp-radar.html _site/vcp-radar.html
           cp momentum-radar.html _site/momentum-radar.html
           python scripts/momentum_daily.py
