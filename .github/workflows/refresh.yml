@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'scripts/refresh.py'
+      - 'scripts/us_bottom.py'
+      - 'tests/test_us_bottom.py'
       - 'scripts/vcp_daily.py'
       - 'scripts/momentum_c_backtest.py'
       - 'scripts/momentum_exit_comparison.py'
@@ -92,6 +94,11 @@ jobs:
           node --check /tmp/radar.js
           python -c 'import pathlib,re; x=pathlib.Path("vcp-radar.html").read_text(); m=re.search("<script>(.*?)</script>",x,re.S); assert m, "Missing VCP page script"; pathlib.Path("/tmp/vcp-radar.js").write_text(m.group(1))'
           node --check /tmp/vcp-radar.js
+          python -m unittest discover -s tests -p 'test_us_bottom.py' -v
+          python -c 'import pathlib,re; x=pathlib.Path("us-bottom.html").read_text(); m=re.search("<script>(.*?)</script>",x,re.S); assert m; pathlib.Path("/tmp/us-bottom.js").write_text(m.group(1))'
+          node --check /tmp/us-bottom.js
+          python -c 'import pathlib,re; x=pathlib.Path("momentum-radar.html").read_text(); m=re.search("<script>(.*?)</script>",x,re.S); assert m; pathlib.Path("/tmp/momentum.js").write_text(m.group(1))'
+          node --check /tmp/momentum.js
           python -m unittest discover -s tests -p 'test_vcp.py' -v
           python -m unittest discover -s tests -p 'test_momentum.py' -v
           python -m unittest discover -s tests -p 'test_momentum_c_backtest.py' -v
@@ -131,7 +138,6 @@ jobs:
           cp rules/d1-screening.js _site/rules/d1-screening.js
           cp rules/d1-history.js _site/rules/d1-history.js
           cp rules/momentum-week.js _site/rules/momentum-week.js
-          cp rules/vcp-integration.js _site/rules/vcp-integration.js
           cp rules/a1-screening.js _site/rules/a1-screening.js
           cp strategy-validation.html _site/strategy-validation.html
           cp strategy-validation.js _site/strategy-validation.js
@@ -139,11 +145,6 @@ jobs:
             cp data/auto_snapshots.json _site/data/auto_snapshots.json
           else
             echo '{"snapshots":[]}' > _site/data/auto_snapshots.json
-          fi
-          if [ -f data/vcp_signals.json ]; then
-            cp data/vcp_signals.json _site/data/vcp_signals.json
-          else
-            echo '{"candidateCount":0,"storedSessions":0,"eligibleStocks":0,"marketAsOf":{},"candidates":[]}' > _site/data/vcp_signals.json
           fi
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
