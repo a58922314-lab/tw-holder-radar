@@ -9,7 +9,7 @@ FRED_TABLE="https://fred.stlouisfed.org/data/"
 VIX_CSV="https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv"
 SPX_JSON="https://cdn.cboe.com/api/global/delayed_quotes/charts/historical/_SPX.json"
 CACHE=pathlib.Path(".us-bottom-cache/last.json")
-SEED=pathlib.Path("data/us_bottom_seed.json")
+SEED=pathlib.Path("us-bottom-seed.json")
 CBOE="https://cdn.cboe.com/data/us/options/market_statistics/daily/"
 OUT=pathlib.Path("data/us_bottom.json")
 def get(url):
