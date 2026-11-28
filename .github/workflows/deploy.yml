@@ -6,7 +6,7 @@ on:
       - 'index.html'
       - 'us-bottom.html'
       - 'scripts/us_bottom.py'
-      - 'data/us_bottom_seed.json'
+      - 'us-bottom-seed.json'
       - 'tests/test_us_bottom.py'
       - 'vcp-radar.html'
       - 'momentum-radar.html'
@@ -102,12 +102,13 @@ jobs:
           mkdir -p _site/data
           cp index.html _site/index.html
           cp us-bottom.html _site/us-bottom.html
-          cp data/us_bottom_seed.json _site/data/us_bottom_seed.json
+          cp us-bottom-seed.json _site/data/us_bottom_seed.json
+          cp us-bottom-seed.json _site/us-bottom-seed.json
           if python scripts/us_bottom.py; then
             cp data/us_bottom.json _site/data/us_bottom.json
           else
             echo 'US market source unavailable; publishing explicitly incomplete verified seed.'
-            cp data/us_bottom_seed.json _site/data/us_bottom.json
+            cp us-bottom-seed.json _site/data/us_bottom.json
           fi
           cp vcp-radar.html _site/vcp-radar.html
           cp momentum-radar.html _site/momentum-radar.html
