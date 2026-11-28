@@ -6,6 +6,7 @@ on:
       - 'index.html'
       - 'us-bottom.html'
       - 'scripts/us_bottom.py'
+      - 'data/us_bottom_seed.json'
       - 'tests/test_us_bottom.py'
       - 'vcp-radar.html'
       - 'momentum-radar.html'
@@ -39,6 +40,8 @@ on:
   schedule:
     # 07:15 Taiwan time (previous US session closed); Tue-Sat.
     - cron: '15 23 * * 1-5'
+    # Retry after FRED's US business-hours update.
+    - cron: '30 17 * * 1-5'
   workflow_dispatch:
 permissions:
   contents: read
@@ -87,16 +90,24 @@ jobs:
           node --check rules/a1-screening.js
           node --test tests/a1-screening.test.cjs
           node --test tests/industry-flow.test.cjs
+      - uses: actions/cache@v4
+        with:
+          path: .us-bottom-cache
+          key: us-bottom-v2-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            us-bottom-v2-
       - uses: actions/configure-pages@v5
       - name: Assemble website
         run: |
           mkdir -p _site/data
           cp index.html _site/index.html
           cp us-bottom.html _site/us-bottom.html
+          cp data/us_bottom_seed.json _site/data/us_bottom_seed.json
           if python scripts/us_bottom.py; then
             cp data/us_bottom.json _site/data/us_bottom.json
           else
-            echo 'US market source unavailable; page will mark data missing.'
+            echo 'US market source unavailable; publishing explicitly incomplete verified seed.'
+            cp data/us_bottom_seed.json _site/data/us_bottom.json
           fi
           cp vcp-radar.html _site/vcp-radar.html
           cp momentum-radar.html _site/momentum-radar.html
