@@ -73,7 +73,7 @@ jobs:
           for attempt in 1 2 3; do
             git fetch origin main
             git reset --mixed origin/main
-            git add -A -- data/auto_snapshots.json data/universe.json data/vcp_daily.json data/vcp_signals.json
+            git add -A -- data/auto_snapshots.json data/universe.json data/prices.json data/tdcc_history.json data/trading_calendar.json data/institutional_daily.json data/institutional_metadata.json data/vcp_daily.json data/vcp_signals.json
             # Do not stage or delete any unrelated data files from concurrent commits.
             if git diff --staged --quiet; then
               echo "No new official data."
