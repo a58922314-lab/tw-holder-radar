@@ -73,7 +73,8 @@ jobs:
           for attempt in 1 2 3; do
             git fetch origin main
             git reset --mixed origin/main
-            git add -A data/
+            git add -A -- data/auto_snapshots.json data/universe.json data/vcp_daily.json data/vcp_signals.json
+            # Do not stage or delete any unrelated data files from concurrent commits.
             if git diff --staged --quiet; then
               echo "No new official data."
               break
@@ -88,6 +89,10 @@ jobs:
               exit 1
             fi
           done
+      - name: Sync latest committed code and protected US fallback
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
       - name: Validate dashboard script syntax
         run: |
           python -c 'import pathlib,re; x=pathlib.Path("index.html").read_text(); m=re.search("<script>(.*?)</script>",x,re.S); assert m, "Missing inline dashboard script"; pathlib.Path("/tmp/radar.js").write_text(m.group(1))'
@@ -127,12 +132,13 @@ jobs:
           mkdir -p _site/data
           cp index.html _site/index.html
           cp us-bottom.html _site/us-bottom.html
-          cp data/us_bottom_seed.json _site/data/us_bottom_seed.json
+          cp us-bottom-seed.json _site/data/us_bottom_seed.json
+          cp us-bottom-seed.json _site/us-bottom-seed.json
           if python scripts/us_bottom.py; then
             cp data/us_bottom.json _site/data/us_bottom.json
           else
             echo 'US market source unavailable; publishing explicitly incomplete verified seed.'
-            cp data/us_bottom_seed.json _site/data/us_bottom.json
+            cp us-bottom-seed.json _site/data/us_bottom.json
           fi
           cp vcp-radar.html _site/vcp-radar.html
           cp momentum-radar.html _site/momentum-radar.html
